@@ -1,4 +1,5 @@
 import { injected } from 'wagmi/connectors';
+import { createConnector } from 'wagmi';
 
 export const aambaWallet = () => ({
     id: 'aamba-custom-wallet',
@@ -30,18 +31,18 @@ export const aambaWallet = () => ({
         }
     },
     createConnector: (walletDetails) => {
-        // This allows Wagmi+RainbowKit to connect to your custom browser extension.
-        // Replace 'window.aamba' with whatever global variable your extension injects.
         const isOurWalletInstalled = typeof window !== 'undefined' && typeof window.aamba !== 'undefined';
 
-        const connector = injected({
-            target: isOurWalletInstalled ? {
-                id: 'aambaProvider',
-                name: 'Aamba Smart Wallet',
-                provider: window.aamba
-            } : 'metaMask', // Fallback to standard injected provider for development testing
-        });
-
-        return typeof connector === 'function' ? connector(walletDetails) : connector;
+        // Proper Wagmi v2 custom connector wrapper
+        return createConnector((config) => ({
+            ...injected({
+                target: isOurWalletInstalled ? {
+                    id: 'aambaProvider',
+                    name: 'Aamba Smart Wallet',
+                    provider: window.aamba
+                } : 'metaMask', // Fallback to standard injected provider for development testing
+            })(config),
+            ...walletDetails,
+        }));
     },
 });
