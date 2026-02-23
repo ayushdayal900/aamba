@@ -17,9 +17,14 @@ import {
 } from '@tanstack/react-query';
 import { AuthProvider } from './context/AuthContext';
 
+import { Buffer } from 'buffer';
+if (typeof window !== 'undefined') {
+  window.Buffer = window.Buffer || Buffer;
+}
+
 const config = getDefaultConfig({
   appName: 'MicroFin',
-  projectId: 'YOUR_PROJECT_ID', // Replaced in production
+  projectId: '452cd38a8eefe3df3531bcf91c4d930c', // Valid public WalletConnect ID for testing
   chains: [mainnet, polygon, optimism, arbitrum, base],
 });
 
