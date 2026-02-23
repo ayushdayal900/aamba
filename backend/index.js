@@ -3,7 +3,10 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 require('dotenv').config();
+const { connectDB, connectRedis } = require('./config/db');
 
+connectDB();
+connectRedis();
 const app = express();
 const port = process.env.PORT || 5000;
 
