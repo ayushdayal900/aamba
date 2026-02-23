@@ -8,14 +8,20 @@ const { connectDB, connectRedis } = require('./config/db');
 connectDB();
 connectRedis();
 const app = express();
+const userRoutes = require('./routes/userRoutes');
+const loanRoutes = require('./routes/loanRoutes');
 const port = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors());
+// Security and utility Middlewares
 app.use(helmet());
+app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Core API Routes
+app.use('/api/users', userRoutes);
+app.use('/api/loans', loanRoutes);
 
 // Basic Route for health check
 app.get('/', (req, res) => {
