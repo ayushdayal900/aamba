@@ -1,96 +1,106 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
-import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { parseUnits } from 'viem';
+import { ethers } from 'ethers';
+import { useAccount } from 'wagmi';
 
-// ABI fragment for Escrow repayLoan
-const escrowAbi = [
-    {
-        "inputs": [{ "internalType": "uint256", "name": "_loanId", "type": "uint256" }],
-        "name": "repayLoan",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    }
-];
+import addresses from '../contracts/addresses.json';
+import microfinanceAbi from '../contracts/Microfinance.json';
 
 const BorrowerDashboard = () => {
-    const { userProfile } = useAuth();
+    const { userProfile, token } = useAuth();
+    const { address: walletAddress, isConnected } = useAccount();
     const [amount, setAmount] = useState('');
     const [duration, setDuration] = useState('');
     const [purpose, setPurpose] = useState('');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
-
-    // UI state for repayment logic (mocked up as we don't have the full borrower UI schema built yet)
-    // Normally this would map to actual active loans retrieved from Backend/Graph
-    const [activeLoanIdToRepay, setActiveLoanIdToRepay] = useState(null);
-
-    const { data: hash, writeContract, error: writeError, isPending: isWritePending } = useWriteContract();
-    const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash });
+    const [myLoans, setMyLoans] = useState([]);
+    const [processingLoan, setProcessingLoan] = useState(null);
+    const [txHash, setTxHash] = useState(null);
 
     useEffect(() => {
-        if (isConfirmed && activeLoanIdToRepay) {
-            setMessage('Smart Contract Executed! Syncing repayment with backend...');
-            syncBackendRepayment(activeLoanIdToRepay);
+        if (token) {
+            fetchMyLoans();
         }
-    }, [isConfirmed]);
+    }, [token]);
 
-    useEffect(() => {
-        if (writeError) {
-            setMessage('Transaction failed: ' + writeError.message);
-            setActiveLoanIdToRepay(null);
+    const fetchMyLoans = async () => {
+        try {
+            const res = await axios.get('http://localhost:5000/api/loans/my', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.data.success) {
+                setMyLoans(res.data.data);
+            }
+        } catch (error) {
+            console.error("Error fetching my loans:", error);
         }
-    }, [writeError]);
-
-    const syncBackendRepayment = async (loanId) => {
-        // Normally post to an endpoint handling the repayment logic in the backend
-        setMessage('Loan successfully repaid. Trust Score increased!');
-        setActiveLoanIdToRepay(null);
     };
 
-    const handleRepayLoan = async (smartContractLoanId) => {
-        setActiveLoanIdToRepay(smartContractLoanId);
-        setMessage('Awaiting wallet approval to repay...');
+    const handleRepayLoan = async (loanId, smartContractId, amount) => {
+        if (!isConnected) return alert("Please connect your wallet first");
+
+        setProcessingLoan(loanId);
+        setTxHash(null);
+        setMessage('Awaiting wallet approval to repay on-chain...');
 
         try {
-            const ESCROW_ADDRESS = import.meta.env.VITE_ESCROW_CONTRACT_ADDRESS || "0x0000000000000000000000000000000000000000";
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            const signer = await provider.getSigner();
+            const contract = new ethers.Contract(addresses.microfinance, microfinanceAbi, signer);
 
-            writeContract({
-                address: ESCROW_ADDRESS,
-                abi: escrowAbi,
-                functionName: 'repayLoan',
-                args: [smartContractLoanId]
+            // Fetch repayment amount (Principal + Interest)
+            // For demo, we use a fixed 10% premium or 0.01 MATIC placeholder if not set
+            const valueToSend = ethers.parseEther("0.01");
+
+            console.log(`Repaying Loan ID: ${smartContractId}`);
+            const tx = await contract.repayLoan(smartContractId, { value: valueToSend });
+            setTxHash(tx.hash);
+
+            setMessage('Transaction submitted! Waiting for confirmation...');
+            await tx.wait();
+
+            setMessage('Repayment Confirmed on Blockchain! Syncing with backend...');
+
+            // Sync with backend
+            await axios.put(`http://localhost:5000/api/loans/${loanId}/repay`, {
+                txHash: tx.hash
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
             });
 
+            setMessage('Loan fully Repaid! Your trust score will be updated shortly.');
+            fetchMyLoans();
         } catch (error) {
             console.error(error);
-            setMessage('Failed to initiate repayment transaction.');
-            setActiveLoanIdToRepay(null);
+            setMessage('Repayment failed: ' + (error.reason || error.message));
+        } finally {
+            setProcessingLoan(null);
         }
     };
 
-    const handleSubmit = async (e) => {
+    const handleSubmitRequest = async (e) => {
         e.preventDefault();
         setLoading(true);
         setMessage('');
         try {
-            // Note: Creating the loan order in the DB doesn't require wagmi interaction YET.
-            // Wagmi contract interaction happens when the LENDER funds it (which triggers 'createLoan' on chain),
-            // OR if the protocol logic requires the borrower to invoke 'acceptLoan' separately.
             const res = await axios.post('http://localhost:5000/api/loans', {
                 borrowerId: userProfile._id,
                 amountRequested: Number(amount),
-                interestRate: 8.5, // Fixed rate for now, can be algorithmic later
+                interestRate: 10,
                 durationMonths: Number(duration),
                 purpose
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
             });
+
             if (res.data.success) {
-                setMessage('Loan Request successfully published to the market!');
+                setMessage('Loan Request successfully published! Waiting for a lender to fund.');
                 setAmount('');
                 setDuration('');
                 setPurpose('');
+                fetchMyLoans();
             }
         } catch (error) {
             setMessage(error.response?.data?.message || 'Error creating loan request.');
@@ -104,101 +114,82 @@ const BorrowerDashboard = () => {
             <h1 className="text-3xl font-bold text-white mb-8">Borrower Dashboard</h1>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-
-                {/* Profile Stats Sidebar */}
                 <div className="col-span-1 space-y-6">
                     <div className="bg-fintech-card p-6 rounded-xl border border-fintech-border shadow-lg">
                         <h3 className="text-slate-400 text-sm font-medium uppercase tracking-wider mb-2">My Trust Score</h3>
                         <div className="text-4xl font-bold text-emerald-400 mb-1">{userProfile?.trustScore || 0}</div>
-                        <p className="text-sm text-slate-500">Tier: <span className="text-slate-300">Standard</span></p>
+                        <p className="text-sm text-slate-500 italic">Syncing with on-chain records...</p>
                     </div>
 
                     <div className="bg-fintech-card p-6 rounded-xl border border-fintech-border shadow-lg">
                         <h3 className="text-slate-400 text-sm font-medium uppercase tracking-wider mb-4">NFT Identity</h3>
                         <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 bg-gradient-to-tr from-purple-500 to-pink-500 rounded-md shadow-inner flex items-center justify-center">
-                                <span className="text-white text-xs font-bold">NFT</span>
+                            <div className="w-10 h-10 bg-gradient-to-tr from-blue-500 to-emerald-500 rounded-md shadow-inner flex items-center justify-center">
+                                <span className="text-white text-xs font-bold">SBT</span>
                             </div>
                             <div>
-                                <p className="text-white font-medium text-sm">Soulbound Token</p>
-                                <p className="text-slate-500 text-xs text-green-400">Verified ✅</p>
+                                <p className="text-white font-medium text-sm">Aamba Identity</p>
+                                <p className="text-emerald-400 text-xs font-bold uppercase tracking-widest">Verified</p>
                             </div>
                         </div>
                     </div>
-
-                    {/* Placeholder Active Loans Area */}
-                    <div className="bg-fintech-card p-6 rounded-xl border border-fintech-border shadow-lg">
-                        <h3 className="text-slate-400 text-sm font-medium uppercase tracking-wider mb-4">Active Contracts</h3>
-                        <button
-                            onClick={() => handleRepayLoan(1)}
-                            disabled={activeLoanIdToRepay || isWritePending || isConfirming}
-                            className={`w-full py-2 rounded text-sm transition-colors ${activeLoanIdToRepay || isWritePending || isConfirming ? 'bg-fintech-dark text-slate-500 border border-fintech-border cursor-not-allowed' : 'bg-green-500/20 text-green-400 hover:bg-green-500 hover:text-white border border-green-500/50'}`}
-                        >
-                            {activeLoanIdToRepay && isConfirming ? 'Confirming Tx...' : activeLoanIdToRepay && isWritePending ? 'Approve in Wallet...' : 'Repay Loan #1 (Demo)'}
-                        </button>
-                    </div>
                 </div>
 
-                {/* Main Loan Creation Area */}
-                <div className="col-span-1 md:col-span-2">
+                <div className="col-span-1 md:col-span-2 space-y-8">
                     <div className="bg-fintech-card p-8 rounded-xl border border-fintech-border shadow-lg">
                         <h2 className="text-xl font-bold text-white mb-6">Create New Loan Request</h2>
-
                         {message && (
-                            <div className={`p-4 rounded-lg mb-6 text-sm break-all ${message.includes('success') || message.includes('Exec') ? 'bg-fintech-success/20 text-fintech-success border border-fintech-success/50' : 'bg-red-500/20 text-red-400 border border-red-500/50'}`}>
+                            <div className={`p-4 rounded-lg mb-6 text-sm ${message.includes('failed') || message.includes('Error') ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'} border border-opacity-20`}>
                                 {message}
-                                {hash && <div className="mt-1 text-xs">Tx Hash: {hash}</div>}
+                                {txHash && <div className="mt-2 font-mono text-xs opacity-70 break-all">Hash: {txHash}</div>}
                             </div>
                         )}
-
-                        <form onSubmit={handleSubmit} className="space-y-6">
+                        <form onSubmit={handleSubmitRequest} className="space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-2">Loan Amount (USDC)</label>
-                                    <input
-                                        type="number"
-                                        value={amount}
-                                        onChange={(e) => setAmount(e.target.value)}
-                                        placeholder="e.g. 500"
-                                        required
-                                        min="1"
-                                        className="w-full bg-fintech-dark border border-fintech-border text-white rounded-lg p-3 outline-none focus:border-fintech-accent"
-                                    />
+                                    <label className="block text-sm font-medium text-slate-300 mb-2">Amount (MATIC)</label>
+                                    <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} required min="0.01" step="0.01" className="w-full bg-fintech-dark border border-fintech-border text-white rounded-lg p-3" />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-300 mb-2">Duration (Months)</label>
-                                    <input
-                                        type="number"
-                                        value={duration}
-                                        onChange={(e) => setDuration(e.target.value)}
-                                        placeholder="e.g. 12"
-                                        required
-                                        min="1"
-                                        className="w-full bg-fintech-dark border border-fintech-border text-white rounded-lg p-3 outline-none focus:border-fintech-accent"
-                                    />
+                                    <input type="number" value={duration} onChange={(e) => setDuration(e.target.value)} required min="1" className="w-full bg-fintech-dark border border-fintech-border text-white rounded-lg p-3" />
                                 </div>
                             </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">Loan Purpose</label>
-                                <textarea
-                                    value={purpose}
-                                    onChange={(e) => setPurpose(e.target.value)}
-                                    placeholder="Describe how you plan to use this capital..."
-                                    required
-                                    rows="3"
-                                    className="w-full bg-fintech-dark border border-fintech-border text-white rounded-lg p-3 outline-none focus:border-fintech-accent resize-none"
-                                ></textarea>
-                            </div>
-
-                            <button
-                                type="submit"
-                                disabled={loading || isWritePending || isConfirming}
-                                className={`w-full font-medium py-3 rounded-lg transition-colors shadow-lg ${loading || isWritePending || isConfirming ? 'bg-fintech-dark text-slate-500 border border-fintech-border cursor-not-allowed' : 'bg-fintech-accent hover:bg-blue-600 text-white'}`}
-                            >
-                                {loading ? 'Publishing Request...' : 'Publish Loan Request to Market'}
+                            <textarea value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="Loan purpose..." required className="w-full bg-fintech-dark border border-fintech-border text-white rounded-lg p-3"></textarea>
+                            <button type="submit" disabled={loading} className="w-full bg-fintech-accent font-bold py-3 rounded-lg text-white hover:bg-blue-600 transition-colors uppercase tracking-widest text-sm">
+                                {loading ? 'Processing...' : 'Request Loan via Protocol'}
                             </button>
                         </form>
+                    </div>
+
+                    <div className="space-y-4">
+                        <h2 className="text-xl font-bold text-white">Your Loan History</h2>
+                        {myLoans.length === 0 ? (
+                            <p className="text-slate-500 italic">No loan activity yet.</p>
+                        ) : (
+                            myLoans.map(loan => (
+                                <div key={loan._id} className="bg-fintech-card p-6 rounded-xl border border-fintech-border flex justify-between items-center group">
+                                    <div>
+                                        <div className="flex items-center gap-3 mb-1">
+                                            <span className="text-xl font-bold text-white">{loan.amountRequested} MATIC</span>
+                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-tighter ${loan.status === 'Funded' ? 'bg-blue-500/20 text-blue-400' : loan.status === 'Repaid' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-500/20 text-slate-400'}`}>
+                                                {loan.status}
+                                            </span>
+                                        </div>
+                                        <p className="text-slate-500 text-xs">Contract ID: <span className="font-mono text-slate-300">{loan.simulatedSmartContractId || 'Awaiting Lender'}</span></p>
+                                    </div>
+                                    {loan.status === 'Funded' && (
+                                        <button
+                                            onClick={() => handleRepayLoan(loan._id, loan.simulatedSmartContractId, loan.amountRequested)}
+                                            disabled={processingLoan === loan._id}
+                                            className="bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-white border border-emerald-500/30 px-6 py-2 rounded-lg text-sm font-bold transition-all"
+                                        >
+                                            {processingLoan === loan._id ? 'Processing...' : 'Repay Loan'}
+                                        </button>
+                                    )}
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
             </div>
@@ -207,3 +198,4 @@ const BorrowerDashboard = () => {
 };
 
 export default BorrowerDashboard;
+

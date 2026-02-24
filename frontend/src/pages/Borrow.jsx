@@ -11,16 +11,20 @@ const Borrow = () => {
                     Access liquidity instantly using your on-chain MicroFin reputation score. No centralized credit checks, no hidden fees.
                 </p>
 
-                <div className="bg-fintech-dark border border-fintech-border p-6 rounded-lg pointer-events-none opacity-80 mt-6">
+                <div className="bg-fintech-dark border border-fintech-border p-6 rounded-lg mt-6">
                     <h3 className="text-xl font-bold text-white mb-2">Initialize Credit Profile</h3>
                     <p className="text-slate-400 text-sm mb-6">
                         Before applying for a decentralized loan, you must verify your identity and generate a non-transferable Identity NFT representing your trust score.
                     </p>
 
-                    <button className="bg-fintech-accent text-white px-6 py-3 rounded-lg font-medium cursor-not-allowed">
-                        Mint Identity NFT
+                    <button
+                        onClick={() => window.location.href = '/kyc-verification'}
+                        className="bg-fintech-accent hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                    >
+                        Get Verified & Mint NFT
                     </button>
                 </div>
+
             </div>
         </div>
     );

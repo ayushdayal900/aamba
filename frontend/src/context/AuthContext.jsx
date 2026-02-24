@@ -78,14 +78,18 @@ export const AuthProvider = ({ children }) => {
         }
     }
 
-    const submitKyc = async (documentType, documentNumber, image) => {
+    const submitKyc = async (documentType, documentNumber, image, walletAddress = null, txHash = null) => {
         if (!userProfile) return;
         try {
             const response = await axios.post(`http://localhost:5000/api/users/kyc`, {
                 documentType,
                 documentNumber,
-                image
+                image,
+                walletAddress,
+                txHash
             });
+
+
             if (response.data.success) {
                 const data = response.data.data;
                 setUserProfile(data);

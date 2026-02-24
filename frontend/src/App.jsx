@@ -29,19 +29,23 @@ function App() {
             <Routes>
               <Route path="*" element={<RoleSelection />} />
             </Routes>
-          ) : userProfile?.kycStatus === 'Pending' ? (
+          ) : (userProfile?.kycStatus === 'Pending' || userProfile?.kycStatus === 'FaceVerified' || userProfile?.kycStatus === 'Rejected') ? (
             <Routes>
-              <Route path="*" element={<KYCVerification />} />
+              <Route path="/kyc" element={<KYCVerification />} />
+              <Route path="*" element={<Navigate to="/kyc" replace />} />
             </Routes>
           ) : (
+
             <Routes>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/lend" element={<Lend />} />
               <Route path="/borrow" element={<Borrow />} />
+              <Route path="/kyc" element={<Navigate to="/dashboard" replace />} />
               <Route path="*" element={<div className="text-center mt-20 text-white">404 Not Found</div>} />
             </Routes>
           )}
+
         </main>
       </div>
     </Router>

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
+
 
 const Signup = () => {
     const [name, setName] = useState('');
@@ -82,7 +84,20 @@ const Signup = () => {
                     >
                         {localLoading ? 'Creating Account...' : 'Sign Up'}
                     </button>
+
+                    <div className="flex items-center my-4">
+                        <div className="flex-grow border-t border-fintech-border"></div>
+                        <span className="px-3 text-slate-500 text-xs font-semibold uppercase tracking-widest whitespace-nowrap">Or Initialize via Web3</span>
+                        <div className="flex-grow border-t border-fintech-border"></div>
+                    </div>
+
+                    <div className="flex justify-center flex-col items-center">
+                        <p className="text-xs text-slate-500 mb-3 italic">Establish your identity across all dApps</p>
+                        <ConnectButton label="Sign Up with WalletConnect" showBalance={false} />
+
+                    </div>
                 </form>
+
 
                 <p className="mt-6 text-center text-slate-400 text-sm">
                     Already have an account? <Link to="/login" className="text-fintech-accent hover:text-blue-400 font-medium">Log In</Link>

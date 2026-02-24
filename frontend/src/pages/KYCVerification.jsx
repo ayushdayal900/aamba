@@ -2,9 +2,16 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import Webcam from "react-webcam";
+import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { useAccount } from 'wagmi';
+import { ethers } from 'ethers';
+import addresses from '../contracts/addresses.json';
+import soulboundAbi from '../contracts/SoulboundIdentity.json';
+
 
 const KYCVerification = () => {
     const { userProfile, submitKyc } = useAuth();
+    const { address, isConnected, chainId } = useAccount();
     const navigate = useNavigate();
     const webcamRef = useRef(null);
 
@@ -15,13 +22,46 @@ const KYCVerification = () => {
     const [capturedImage, setCapturedImage] = useState(null);
     const [cameraActive, setCameraActive] = useState(false);
     const [cameraReady, setCameraReady] = useState(false);
+    const [minting, setMinting] = useState(false);
+    const [txHash, setTxHash] = useState(null);
+    const [verifyingNFT, setVerifyingNFT] = useState(false);
 
     // Redirect to dashboard if they are already verified
     useEffect(() => {
-        if (userProfile?.kycStatus === 'Verified') {
+        if (userProfile?.kycStatus === 'Verified' && userProfile?.nftIssued) {
             navigate('/dashboard');
         }
     }, [userProfile, navigate]);
+
+    // Step 5 -> Check if user already owns an Identity NFT
+    useEffect(() => {
+        const checkOwnership = async () => {
+            if (step === 5 && isConnected && address) {
+                setVerifyingNFT(true);
+                try {
+                    const provider = new ethers.BrowserProvider(window.ethereum);
+                    const contract = new ethers.Contract(addresses.identity, soulboundAbi, provider);
+                    const balance = await contract.balanceOf(address);
+
+                    if (Number(balance) > 0) {
+                        console.log("Verified Identity detected in wallet.");
+                        // Sync with backend to finalize status
+                        await submitKyc(docType, docNumber, capturedImage, address, "ALREADY_OWNED");
+                        setStep(7); // Jump to success screen
+                    } else {
+                        setStep(6); // Move to Mint NFT button
+                    }
+                } catch (error) {
+                    console.error("NFT Ownership Check Failed:", error);
+                    setStep(6); // Let them try to mint manually if check fails
+                } finally {
+                    setVerifyingNFT(false);
+                }
+            }
+        };
+        checkOwnership();
+    }, [isConnected, step, address]);
+
 
     const handleDocumentSubmit = (e) => {
         e.preventDefault();
@@ -44,32 +84,65 @@ const KYCVerification = () => {
     }, [webcamRef]);
 
     const startLivelinessScan = (imageStr) => {
-        setStep(3); // Simulating scan progress UI while getting ready to call backend
+        setStep(3); // Simulating scan progress UI
         let progress = 0;
         const interval = setInterval(() => {
             progress += 25;
             setScanProgress(progress);
             if (progress >= 100) {
                 clearInterval(interval);
-                finalizeKyc(imageStr);
+                verifyFace(imageStr);
             }
         }, 500);
     };
 
-    const finalizeKyc = async (imageStr) => {
-        setStep(4); // Processing with backend HF model
+    const verifyFace = async (imageStr) => {
+        setStep(4); // AI Analysis step
         const success = await submitKyc(docType, docNumber, imageStr);
         if (success) {
-            setStep(5); // Success
-            setTimeout(() => {
-                window.location.href = '/dashboard';
-            }, 3000);
+            setStep(5); // Wallet Connection step
         } else {
             alert('KYC Liveliness Verification Failed. Ensure your face is clearly visible.');
             setStep(2); // Go back to camera
             setCameraActive(true);
             setScanProgress(0);
             setCapturedImage(null);
+        }
+    };
+
+    const handleMintNFT = async () => {
+        if (chainId !== 80002) {
+            alert("Please switch to Polygon Amoy Testnet!");
+            return;
+        }
+
+        setMinting(true);
+        try {
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            const signer = await provider.getSigner();
+            const contract = new ethers.Contract(addresses.identity, soulboundAbi, signer);
+
+            // Directly call mint from frontend!
+            const tx = await contract.mintIdentity(address);
+            setTxHash(tx.hash);
+            console.log("Mint Tx Hash:", tx.hash);
+
+            const receipt = await tx.wait();
+            console.log("Minted!", receipt);
+
+            // Notify backend about the successful mint
+            const success = await submitKyc(docType, docNumber, capturedImage, address, tx.hash);
+            if (success) {
+                setStep(7); // Final success
+                setTimeout(() => {
+                    window.location.href = '/dashboard';
+                }, 4000);
+            }
+        } catch (error) {
+            console.error("Minting failed", error);
+            alert("Minting failed: " + (error.reason || error.message));
+        } finally {
+            setMinting(false);
         }
     };
 
@@ -180,29 +253,74 @@ const KYCVerification = () => {
                         <div className="w-16 h-16 border-4 border-t-fintech-accent border-r-fintech-accent border-b-transparent border-l-transparent rounded-full animate-spin mb-6"></div>
                         <h3 className="text-xl font-bold text-white mb-2">AI Verification in Progress...</h3>
                         <p className="text-slate-400 text-sm text-center">
-                            Validating liveliness via Hugging Face model and assigning your EVM Web3 Wallet.
+                            Validating liveliness via Hugging Face model...
                         </p>
                     </div>
                 )}
 
                 {step === 5 && (
+                    <div className="animate-fade-in flex flex-col items-center text-center py-8">
+                        <div className="w-16 h-16 bg-blue-500/20 text-blue-400 rounded-full flex items-center justify-center mb-6">
+                            {verifyingNFT ? (
+                                <div className="w-8 h-8 border-3 border-t-blue-400 border-blue-400/20 rounded-full animate-spin"></div>
+                            ) : (
+                                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                            )}
+                        </div>
+                        <h3 className="text-xl font-bold text-white mb-4">
+                            {verifyingNFT ? 'Checking On-Chain Identity...' : 'Connect Your Private Wallet'}
+                        </h3>
+                        <p className="text-slate-400 text-sm mb-6">
+                            {verifyingNFT ? 'Please wait while we verify your decentralized profile.' : 'Connect the wallet where you\'d like to receive your Soulbound Identity NFT.'}
+                        </p>
+                        {!verifyingNFT && <ConnectButton showBalance={false} />}
+                    </div>
+                )}
+
+                {step === 6 && (
+                    <div className="animate-fade-in flex flex-col items-center text-center py-8">
+                        <div className="w-20 h-20 bg-emerald-500/20 text-emerald-400 rounded-xl flex items-center justify-center mb-6 border border-emerald-500/30">
+                            <span className="text-xs font-bold uppercase">Ready</span>
+                        </div>
+                        <h3 className="text-xl font-bold text-white mb-2">Wallet Connected!</h3>
+                        <p className="text-emerald-400 font-mono text-xs mb-4 truncate w-full px-4">{address}</p>
+                        <p className="text-slate-400 text-sm mb-8">No non-transferable Identity NFT found. Click below to initiate your decentralized ID.</p>
+
+                        <button
+                            onClick={handleMintNFT}
+                            disabled={minting}
+                            className="w-full bg-fintech-accent hover:bg-blue-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg flex items-center justify-center"
+                        >
+                            {minting ? (
+                                <>
+                                    <div className="w-5 h-5 border-2 border-t-white border-white/20 rounded-full animate-spin mr-3"></div>
+                                    Minting on Amoy...
+                                </>
+                            ) : 'Mint Identity NFT'}
+                        </button>
+                    </div>
+                )}
+
+                {step === 7 && (
                     <div className="animate-fade-in flex flex-col items-center py-10">
                         <div className="w-20 h-20 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(16,185,129,0.3)]">
                             <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
                         </div>
-                        <h3 className="text-2xl font-bold text-white mb-3">Verification Complete!</h3>
+                        <h3 className="text-2xl font-bold text-white mb-3">Verified Identity!</h3>
                         <div className="bg-fintech-dark border border-fintech-border p-4 rounded-xl w-full text-center">
-                            <p className="text-slate-300 text-sm mb-1">EVM Wallet Assigned</p>
-                            <p className="text-emerald-400 font-mono text-xs break-all">{userProfile?.walletAddress || '0x...'}</p>
+                            <p className="text-slate-300 text-sm mb-1">Soulbound Identity Confirmed</p>
+                            <p className="text-emerald-400 font-mono text-xs break-all">{address}</p>
                         </div>
                         <p className="text-slate-400 text-sm mt-6">
-                            Soulbound NFT issued. Redirecting to your dashboard...
+                            Identity verification successful. Redirecting to your dashboard...
                         </p>
                     </div>
                 )}
+
             </div>
         </div>
     );
 };
 
 export default KYCVerification;
+

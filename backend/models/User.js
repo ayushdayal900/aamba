@@ -28,7 +28,7 @@ const userSchema = new mongoose.Schema({
     },
     kycStatus: {
         type: String,
-        enum: ['Pending', 'Verified', 'Rejected'],
+        enum: ['Pending', 'FaceVerified', 'Verified', 'Rejected'],
         default: 'Pending',
     },
     kycDetails: {
@@ -40,10 +40,14 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false,
     },
+    nftTxHash: {
+        type: String,
+    },
     trustScore: {
         type: Number,
         default: 0, // 0-1000 scale, updated by simulated ML model/repayments
     }
+
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

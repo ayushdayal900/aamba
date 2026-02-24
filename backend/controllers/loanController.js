@@ -82,3 +82,45 @@ exports.fundLoan = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+// @desc    Get all loans associated with the logged in user (Borrower or Lender)
+// @route   GET /api/loans/my
+exports.getUserLoans = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const user = await User.findById(userId);
+
+        let query = {};
+        if (user.role === 'Borrower') {
+            query = { borrower: userId };
+        } else if (user.role === 'Lender') {
+            query = { lender: userId };
+        }
+
+        const loans = await LoanRequest.find(query)
+            .populate('borrower', 'name walletAddress trustScore')
+            .populate('lender', 'name walletAddress');
+
+        res.status(200).json({ success: true, count: loans.length, data: loans });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Sync repayment from frontend to backend
+// @route   PUT /api/loans/:id/repay
+exports.repayLoan = async (req, res) => {
+    try {
+        const { txHash } = req.body;
+        const loan = await LoanRequest.findById(req.params.id);
+
+        if (!loan) return res.status(404).json({ message: 'Loan not found' });
+
+        loan.status = 'Repaid';
+        // In a real app we'd store the txHash in a separate ledger/field
+        await loan.save();
+
+        res.status(200).json({ success: true, message: 'Loan status updated to Repaid' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

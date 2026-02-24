@@ -1,8 +1,11 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 
 const Navbar = () => {
+
+
     const { isConnected, userProfile, logout } = useAuth();
     const navigate = useNavigate();
 
@@ -30,9 +33,12 @@ const Navbar = () => {
                 <div className="pl-4 border-l border-fintech-border flex space-x-4 items-center">
                     {isConnected ? (
                         <div className="flex items-center space-x-4">
+                            <ConnectButton showBalance={false} chainStatus="icon" accountStatus="avatar" />
+                            <div className="h-6 w-[1px] bg-fintech-border mx-2"></div>
                             <span className="text-sm text-slate-300">
                                 {userProfile?.name} <span className="text-xs bg-slate-800 px-2 py-1 rounded ml-2">{userProfile?.role || 'User'}</span>
                             </span>
+
                             <button
                                 onClick={handleLogout}
                                 className="text-sm text-red-400 hover:text-red-300 transition-colors bg-red-400/10 px-4 py-2 rounded-lg"
