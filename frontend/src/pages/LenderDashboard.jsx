@@ -1,6 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
+import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { parseUnits } from 'viem';
+
+// ABI fragment for Escrow createLoan
+const escrowAbi = [
+    {
+        "inputs": [
+            { "internalType": "address", "name": "_borrower", "type": "address" },
+            { "internalType": "contract IERC20", "name": "_token", "type": "address" },
+            { "internalType": "uint256", "name": "_principal", "type": "uint256" },
+            { "internalType": "uint256", "name": "_interest", "type": "uint256" },
+            { "internalType": "uint256", "name": "_duration", "type": "uint256" }
+        ],
+        "name": "createLoan",
+        "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    }
+];
 
 const LenderDashboard = () => {
     const { userProfile } = useAuth();
@@ -9,9 +28,27 @@ const LenderDashboard = () => {
     const [actionLoading, setActionLoading] = useState(null);
     const [message, setMessage] = useState('');
 
+    const { data: hash, writeContract, error: writeError, isPending: isWritePending } = useWriteContract();
+    const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash });
+
     useEffect(() => {
         fetchLoans();
     }, []);
+
+    // Effect to handle post-transaction success sync
+    useEffect(() => {
+        if (isConfirmed && actionLoading) {
+            setMessage('Smart Contract executed! Syncing with backend...');
+            syncBackend(actionLoading);
+        }
+    }, [isConfirmed]);
+
+    useEffect(() => {
+        if (writeError) {
+            setMessage('Transaction failed: ' + writeError.message);
+            setActionLoading(null);
+        }
+    }, [writeError])
 
     const fetchLoans = async () => {
         try {
@@ -26,19 +63,45 @@ const LenderDashboard = () => {
         }
     };
 
-    const handleFundLoan = async (loanId) => {
+    const handleFundLoan = async (loanId, borrowerWallet, amount, interestRate, durationMonths) => {
         setActionLoading(loanId);
-        setMessage('');
+        setMessage('Awaiting wallet approval...');
+
+        try {
+            // For now, assume process.env variables are defined for ESCROW and TOKEN or fallback to mock addresses
+            const ESCROW_ADDRESS = import.meta.env.VITE_ESCROW_CONTRACT_ADDRESS || "0x0000000000000000000000000000000000000000";
+            const TOKEN_ADDRESS = import.meta.env.VITE_MOCK_TOKEN_ADDRESS || "0x0000000000000000000000000000000000000000";
+
+            // Format parameters
+            const principal = parseUnits(amount.toString(), 18);
+            const interest = parseUnits(((amount * interestRate) / 100).toString(), 18);
+            const durationInSeconds = durationMonths * 30 * 24 * 60 * 60;
+
+            writeContract({
+                address: ESCROW_ADDRESS,
+                abi: escrowAbi,
+                functionName: 'createLoan',
+                args: [borrowerWallet || "0x123", TOKEN_ADDRESS, principal, interest, durationInSeconds]
+            });
+
+        } catch (error) {
+            console.error(error);
+            setMessage('Failed to initiate transaction.');
+            setActionLoading(null);
+        }
+    };
+
+    const syncBackend = async (loanId) => {
         try {
             const res = await axios.put(`http://localhost:5000/api/loans/${loanId}/fund`, {
                 lenderId: userProfile._id
             });
             if (res.data.success) {
-                setMessage(res.data.message); // Displays smart contract simulation text
+                setMessage('Loan successfully funded and synced!');
                 fetchLoans(); // Refresh list to remove funded loan
             }
         } catch (error) {
-            setMessage(error.response?.data?.message || 'Error funding loan.');
+            setMessage(error.response?.data?.message || 'Error syncing to backend.');
         } finally {
             setActionLoading(null);
         }
@@ -50,8 +113,9 @@ const LenderDashboard = () => {
             <p className="text-slate-400 mb-8">Deploy your capital to secure, overcollateralized Web3 loan requests.</p>
 
             {message && (
-                <div className={`p-4 rounded-lg mb-8 text-sm max-w-3xl ${message.includes('Smart Contract') ? 'bg-fintech-success/20 text-fintech-success border border-fintech-success/50' : 'bg-red-500/20 text-red-400 border border-red-500/50'}`}>
+                <div className={`p-4 rounded-lg mb-8 text-sm max-w-3xl ${message.includes('success') || message.includes('Smart Contract') ? 'bg-fintech-success/20 text-fintech-success border border-fintech-success/50' : 'bg-red-500/20 text-red-400 border border-red-500/50'}`}>
                     {message}
+                    {hash && <div className="mt-1 text-xs break-all">Tx Hash: {hash}</div>}
                 </div>
             )}
 
@@ -102,11 +166,11 @@ const LenderDashboard = () => {
                             </div>
 
                             <button
-                                onClick={() => handleFundLoan(loan._id)}
-                                disabled={actionLoading === loan._id}
-                                className="w-full bg-fintech-accent/20 hover:bg-fintech-accent text-fintech-accent hover:text-white font-medium py-3 rounded-lg transition-colors border border-fintech-accent/50"
+                                onClick={() => handleFundLoan(loan._id, loan.borrower.walletAddress, loan.amountRequested, loan.interestRate, loan.durationMonths)}
+                                disabled={actionLoading === loan._id || isWritePending || isConfirming}
+                                className={`w-full font-medium py-3 rounded-lg transition-colors border ${actionLoading === loan._id || isWritePending || isConfirming ? 'bg-fintech-dark text-slate-500 border-fintech-border cursor-not-allowed' : 'bg-fintech-accent/20 hover:bg-fintech-accent text-fintech-accent hover:text-white border-fintech-accent/50'}`}
                             >
-                                {actionLoading === loan._id ? 'Deploying Smart Contract...' : 'Accept & Fund Protocol'}
+                                {actionLoading === loan._id && isConfirming ? 'Confirming Tx...' : actionLoading === loan._id && isWritePending ? 'Approve in Wallet...' : 'Accept & Fund Protocol'}
                             </button>
                         </div>
                     ))}

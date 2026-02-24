@@ -1,6 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
+import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { parseUnits } from 'viem';
+
+// ABI fragment for Escrow repayLoan
+const escrowAbi = [
+    {
+        "inputs": [{ "internalType": "uint256", "name": "_loanId", "type": "uint256" }],
+        "name": "repayLoan",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    }
+];
 
 const BorrowerDashboard = () => {
     const { userProfile } = useAuth();
@@ -10,11 +23,62 @@ const BorrowerDashboard = () => {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
 
+    // UI state for repayment logic (mocked up as we don't have the full borrower UI schema built yet)
+    // Normally this would map to actual active loans retrieved from Backend/Graph
+    const [activeLoanIdToRepay, setActiveLoanIdToRepay] = useState(null);
+
+    const { data: hash, writeContract, error: writeError, isPending: isWritePending } = useWriteContract();
+    const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash });
+
+    useEffect(() => {
+        if (isConfirmed && activeLoanIdToRepay) {
+            setMessage('Smart Contract Executed! Syncing repayment with backend...');
+            syncBackendRepayment(activeLoanIdToRepay);
+        }
+    }, [isConfirmed]);
+
+    useEffect(() => {
+        if (writeError) {
+            setMessage('Transaction failed: ' + writeError.message);
+            setActiveLoanIdToRepay(null);
+        }
+    }, [writeError]);
+
+    const syncBackendRepayment = async (loanId) => {
+        // Normally post to an endpoint handling the repayment logic in the backend
+        setMessage('Loan successfully repaid. Trust Score increased!');
+        setActiveLoanIdToRepay(null);
+    };
+
+    const handleRepayLoan = async (smartContractLoanId) => {
+        setActiveLoanIdToRepay(smartContractLoanId);
+        setMessage('Awaiting wallet approval to repay...');
+
+        try {
+            const ESCROW_ADDRESS = import.meta.env.VITE_ESCROW_CONTRACT_ADDRESS || "0x0000000000000000000000000000000000000000";
+
+            writeContract({
+                address: ESCROW_ADDRESS,
+                abi: escrowAbi,
+                functionName: 'repayLoan',
+                args: [smartContractLoanId]
+            });
+
+        } catch (error) {
+            console.error(error);
+            setMessage('Failed to initiate repayment transaction.');
+            setActiveLoanIdToRepay(null);
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         setMessage('');
         try {
+            // Note: Creating the loan order in the DB doesn't require wagmi interaction YET.
+            // Wagmi contract interaction happens when the LENDER funds it (which triggers 'createLoan' on chain),
+            // OR if the protocol logic requires the borrower to invoke 'acceptLoan' separately.
             const res = await axios.post('http://localhost:5000/api/loans', {
                 borrowerId: userProfile._id,
                 amountRequested: Number(amount),
@@ -61,6 +125,18 @@ const BorrowerDashboard = () => {
                             </div>
                         </div>
                     </div>
+
+                    {/* Placeholder Active Loans Area */}
+                    <div className="bg-fintech-card p-6 rounded-xl border border-fintech-border shadow-lg">
+                        <h3 className="text-slate-400 text-sm font-medium uppercase tracking-wider mb-4">Active Contracts</h3>
+                        <button
+                            onClick={() => handleRepayLoan(1)}
+                            disabled={activeLoanIdToRepay || isWritePending || isConfirming}
+                            className={`w-full py-2 rounded text-sm transition-colors ${activeLoanIdToRepay || isWritePending || isConfirming ? 'bg-fintech-dark text-slate-500 border border-fintech-border cursor-not-allowed' : 'bg-green-500/20 text-green-400 hover:bg-green-500 hover:text-white border border-green-500/50'}`}
+                        >
+                            {activeLoanIdToRepay && isConfirming ? 'Confirming Tx...' : activeLoanIdToRepay && isWritePending ? 'Approve in Wallet...' : 'Repay Loan #1 (Demo)'}
+                        </button>
+                    </div>
                 </div>
 
                 {/* Main Loan Creation Area */}
@@ -69,8 +145,9 @@ const BorrowerDashboard = () => {
                         <h2 className="text-xl font-bold text-white mb-6">Create New Loan Request</h2>
 
                         {message && (
-                            <div className={`p-4 rounded-lg mb-6 text-sm ${message.includes('success') ? 'bg-fintech-success/20 text-fintech-success border border-fintech-success/50' : 'bg-red-500/20 text-red-400 border border-red-500/50'}`}>
+                            <div className={`p-4 rounded-lg mb-6 text-sm break-all ${message.includes('success') || message.includes('Exec') ? 'bg-fintech-success/20 text-fintech-success border border-fintech-success/50' : 'bg-red-500/20 text-red-400 border border-red-500/50'}`}>
                                 {message}
+                                {hash && <div className="mt-1 text-xs">Tx Hash: {hash}</div>}
                             </div>
                         )}
 
@@ -116,8 +193,8 @@ const BorrowerDashboard = () => {
 
                             <button
                                 type="submit"
-                                disabled={loading}
-                                className="w-full bg-fintech-accent hover:bg-blue-600 text-white font-medium py-3 rounded-lg transition-colors shadow-lg"
+                                disabled={loading || isWritePending || isConfirming}
+                                className={`w-full font-medium py-3 rounded-lg transition-colors shadow-lg ${loading || isWritePending || isConfirming ? 'bg-fintech-dark text-slate-500 border border-fintech-border cursor-not-allowed' : 'bg-fintech-accent hover:bg-blue-600 text-white'}`}
                             >
                                 {loading ? 'Publishing Request...' : 'Publish Loan Request to Market'}
                             </button>

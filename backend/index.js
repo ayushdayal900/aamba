@@ -11,6 +11,11 @@ const app = express();
 const userRoutes = require('./routes/userRoutes');
 const loanRoutes = require('./routes/loanRoutes');
 const port = process.env.PORT || 5000;
+const { connectProvider, listenToContractEvents } = require('./services/blockchainService');
+
+// Initialize Blockchain Service
+connectProvider();
+listenToContractEvents();
 
 // Security and utility Middlewares
 app.use(helmet());
