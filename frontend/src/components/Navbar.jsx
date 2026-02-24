@@ -1,8 +1,16 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const Navbar = () => {
+    const { isConnected, userProfile, logout } = useAuth();
+    const navigate = useNavigate();
+
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
+    };
+
     return (
         <nav className="bg-fintech-dark border-b border-fintech-border px-6 py-4 flex justify-between items-center">
             <div className="flex items-center space-x-2">
@@ -19,7 +27,30 @@ const Navbar = () => {
                 <Link to="/lend" className="text-slate-300 hover:text-white transition-colors text-sm font-medium">Lend</Link>
                 <Link to="/borrow" className="text-slate-300 hover:text-white transition-colors text-sm font-medium">Borrow</Link>
 
-                <ConnectButton label="Connect Identity" showBalance={false} chainStatus="icon" />
+                <div className="pl-4 border-l border-fintech-border flex space-x-4 items-center">
+                    {isConnected ? (
+                        <div className="flex items-center space-x-4">
+                            <span className="text-sm text-slate-300">
+                                {userProfile?.name} <span className="text-xs bg-slate-800 px-2 py-1 rounded ml-2">{userProfile?.role || 'User'}</span>
+                            </span>
+                            <button
+                                onClick={handleLogout}
+                                className="text-sm text-red-400 hover:text-red-300 transition-colors bg-red-400/10 px-4 py-2 rounded-lg"
+                            >
+                                Logout
+                            </button>
+                        </div>
+                    ) : (
+                        <>
+                            <Link to="/login" className="text-sm font-medium text-slate-300 hover:text-white transition-colors">
+                                Log In
+                            </Link>
+                            <Link to="/register" className="text-sm font-medium bg-fintech-accent hover:bg-blue-600 text-white px-5 py-2 rounded-lg transition-colors shadow-lg">
+                                Sign Up
+                            </Link>
+                        </>
+                    )}
+                </div>
             </div>
         </nav>
     );

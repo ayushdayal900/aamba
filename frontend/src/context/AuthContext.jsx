@@ -1,66 +1,99 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useAccount, useDisconnect } from 'wagmi';
 import axios from 'axios';
+import { useDisconnect } from 'wagmi';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-    const { address, isConnected } = useAccount();
-    const { disconnect } = useDisconnect();
     const [userProfile, setUserProfile] = useState(null);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const { disconnect } = useDisconnect();
 
     useEffect(() => {
-        const syncWalletWithBackend = async () => {
-            if (isConnected && address) {
-                setLoading(true);
-                try {
-                    // Send wallet address to backend to auth or register
-                    const response = await axios.post('http://localhost:5000/api/users/auth', {
-                        walletAddress: address
-                    });
+        const userInfo = localStorage.getItem('userInfo');
+        if (userInfo) {
+            const parsedInfo = JSON.parse(userInfo);
+            setUserProfile(parsedInfo);
+            axios.defaults.headers.common['Authorization'] = `Bearer ${parsedInfo.token}`;
+        }
+        setLoading(false);
+    }, []);
 
-                    if (response.data.success) {
-                        setUserProfile(response.data.data);
-                    }
-                } catch (error) {
-                    console.error("Backend Auth Error:", error);
-                } finally {
-                    setLoading(false);
-                }
-            } else {
-                setUserProfile(null);
+    const login = async (email, password) => {
+        try {
+            setLoading(true);
+            const response = await axios.post('http://localhost:5000/api/users/login', { email, password });
+            if (response.data.success) {
+                const data = response.data.data;
+                setUserProfile(data);
+                localStorage.setItem('userInfo', JSON.stringify(data));
+                axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+                return { success: true };
             }
-        };
+        } catch (error) {
+            console.error("Login failed", error);
+            return { success: false, message: error.response?.data?.message || 'Login failed' };
+        } finally {
+            setLoading(false);
+        }
+    };
 
-        syncWalletWithBackend();
-    }, [isConnected, address]);
+    const register = async (name, email, password) => {
+        try {
+            setLoading(true);
+            const response = await axios.post('http://localhost:5000/api/users/register', { name, email, password });
+            if (response.data.success) {
+                const data = response.data.data;
+                setUserProfile(data);
+                localStorage.setItem('userInfo', JSON.stringify(data));
+                axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+                return { success: true };
+            }
+        } catch (error) {
+            console.error("Registration failed", error);
+            return { success: false, message: error.response?.data?.message || 'Registration failed' };
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const logout = () => {
+        localStorage.removeItem('userInfo');
+        setUserProfile(null);
+        delete axios.defaults.headers.common['Authorization'];
+        disconnect(); // Also disconnect wagmi wallet if any
+    };
 
     const updateRole = async (role) => {
         if (!userProfile) return;
         try {
-            const response = await axios.put(`http://localhost:5000/api/users/${userProfile._id}/role`, { role });
+            const response = await axios.put(`http://localhost:5000/api/users/role`, { role });
             if (response.data.success) {
-                setUserProfile(response.data.data);
+                const data = response.data.data;
+                setUserProfile(data);
+                localStorage.setItem('userInfo', JSON.stringify(data));
             }
         } catch (err) {
             console.error("Update role failed", err);
         }
     }
 
-    const submitKyc = async (documentType, documentNumber) => {
+    const submitKyc = async (documentType, documentNumber, image) => {
         if (!userProfile) return;
         try {
-            const response = await axios.post(`http://localhost:5000/api/users/${userProfile._id}/kyc`, {
+            const response = await axios.post(`http://localhost:5000/api/users/kyc`, {
                 documentType,
-                documentNumber
+                documentNumber,
+                image
             });
             if (response.data.success) {
-                setUserProfile(response.data.data);
+                const data = response.data.data;
+                setUserProfile(data);
+                localStorage.setItem('userInfo', JSON.stringify(data));
                 return true;
             }
         } catch (err) {
-            console.error("KYC failed", err);
+            console.error("KYC failed", err.response?.data || err);
             return false;
         }
     }
@@ -69,9 +102,10 @@ export const AuthProvider = ({ children }) => {
         <AuthContext.Provider value={{
             userProfile,
             loading,
-            isConnected,
-            address,
-            disconnectWallet: disconnect,
+            isConnected: !!userProfile, // We use this to check authentication status across the app
+            login,
+            register,
+            logout,
             updateRole,
             submitKyc
         }}>

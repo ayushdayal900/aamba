@@ -20,7 +20,7 @@ const Lend = () => {
                         </div>
                         <p className="text-slate-400 text-sm mb-4">Low risk, stable yield pool backed by overcollateralized loans.</p>
                         <button className="w-full bg-fintech-border text-slate-400 py-3 rounded-md font-medium cursor-not-allowed">
-                            Connect Wallet to Deposit
+                            Log In to Deposit
                         </button>
                     </div>
 
@@ -32,7 +32,7 @@ const Lend = () => {
                         </div>
                         <p className="text-slate-400 text-sm mb-4">Medium risk, higher yield pool. Earn natively on your Ethereum.</p>
                         <button className="w-full bg-fintech-border text-slate-400 py-3 rounded-md font-medium cursor-not-allowed">
-                            Connect Wallet to Deposit
+                            Log In to Deposit
                         </button>
                     </div>
                 </div>

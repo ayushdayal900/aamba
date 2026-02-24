@@ -1,10 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const { authWalletUser, updateUserRole, submitKYC } = require('../controllers/userController');
+const { registerUser, loginUser, updateUserRole, submitKYC } = require('../controllers/userController');
+const { protect } = require('../middleware/authMiddleware');
 
-// User Authentication & KYC Flow
-router.post('/auth', authWalletUser);
-router.put('/:id/role', updateUserRole);
-router.post('/:id/kyc', submitKYC);
+// Traditional Auth Flow
+router.post('/register', registerUser);
+router.post('/login', loginUser);
+
+// Protected Routes
+router.put('/role', protect, updateUserRole);
+router.post('/kyc', protect, submitKYC);
 
 module.exports = router;

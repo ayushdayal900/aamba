@@ -7,6 +7,7 @@ import Borrow from './pages/Borrow';
 import RoleSelection from './pages/RoleSelection';
 import KYCVerification from './pages/KYCVerification';
 import Login from './pages/Login';
+import Signup from './pages/Signup';
 import { useAuth } from './context/AuthContext';
 
 function App() {
@@ -18,9 +19,10 @@ function App() {
         <Navbar />
         <main className="flex-1 bg-fintech-dark">
           {loading ? (
-            <div className="flex justify-center mt-20 text-white font-medium">Syncing Wallet Profile...</div>
+            <div className="flex justify-center mt-20 text-white font-medium">Loading User Profile...</div>
           ) : !isConnected ? (
             <Routes>
+              <Route path="/register" element={<Signup />} />
               <Route path="*" element={<Login />} />
             </Routes>
           ) : userProfile?.role === 'Unassigned' ? (
