@@ -4,6 +4,9 @@ import axios from 'axios';
 import { ethers } from 'ethers';
 import { useAccount, useConfig } from 'wagmi';
 import { getConnectorClient } from '@wagmi/core';
+import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import { FiLoader, FiTrendingUp, FiCheckCircle, FiInfo, FiSearch } from 'react-icons/fi';
 
 import addresses from '../contracts/addresses.json';
 import microfinanceAbi from '../contracts/Microfinance.json';
@@ -30,11 +33,11 @@ const LenderDashboard = () => {
     const { userProfile, token } = useAuth();
     const { address: walletAddress, isConnected, chainId } = useAccount();
     const config = useConfig();
+    const navigate = useNavigate();
+
     const [loans, setLoans] = useState([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(null);
-    const [message, setMessage] = useState('');
-    const [txHash, setTxHash] = useState(null);
 
     useEffect(() => {
         fetchLoans();
@@ -45,20 +48,18 @@ const LenderDashboard = () => {
         if (walletAddress) {
             const hasNFT = await checkIdentityOwnership(walletAddress);
             if (!hasNFT && localStorage.getItem("isOnboarded") === "true") {
-                // If local storage says onboarded but chain says no, reset and redirect
                 localStorage.removeItem("isOnboarded");
-                window.location.href = "/onboarding";
+                navigate("/onboarding");
             }
         }
     };
 
     const fetchLoans = async () => {
+        setLoading(true);
         try {
             const res = await axios.get('http://localhost:5000/api/loans');
             if (res.data.success) {
                 const loanData = res.data.data;
-
-                // Enhance loans with direct on-chain trust scores
                 const provider = new ethers.JsonRpcProvider("https://ethereum-sepolia-rpc.publicnode.com");
                 const trustRegistry = new ethers.Contract(addresses.trustScore, trustScoreAbi, provider);
 
@@ -66,186 +67,153 @@ const LenderDashboard = () => {
                     try {
                         if (loan.borrower?.walletAddress) {
                             const onChainScore = await trustRegistry.getTrustScore(loan.borrower.walletAddress);
-                            return {
-                                ...loan,
-                                onChainTrustScore: Number(onChainScore)
-                            };
+                            return { ...loan, onChainTrustScore: Number(onChainScore) };
                         }
                     } catch (e) {
-                        console.warn("Failed to fetch on-chain score for", loan.borrower?.walletAddress);
+                        console.warn("Failed to fetch on-chain score", e);
                     }
                     return { ...loan, onChainTrustScore: loan.borrower?.trustScore || 0 };
                 }));
-
                 setLoans(enhancedLoans);
             }
         } catch (error) {
-            console.error("Error fetching loans:", error);
+            toast.error("Failed to sync marketplace");
         } finally {
             setLoading(false);
         }
     };
 
     const handleFundLoan = async (loanId, smartContractId, borrowerWallet, amount, interestRate, durationMonths) => {
-        if (!isConnected) return alert("Please connect your wallet first");
+        if (!isConnected) return toast.error("Please connect wallet");
 
-        // Strict on-chain identity check
-        const hasIdentity = await checkIdentityOwnership(walletAddress);
-        if (!hasIdentity) {
-            alert("Protocol Access Denied: No Soulbound Identity detected. Redirecting to onboarding...");
-            window.location.href = "/onboarding";
-            return;
-        }
-
+        const tid = toast.loading('Initiating protocol deployment...');
         setActionLoading(loanId);
-        setTxHash(null);
-        setMessage('Awaiting wallet approval to fund on-chain...');
 
         try {
+            const hasIdentity = await checkIdentityOwnership(walletAddress);
+            if (!hasIdentity) {
+                toast.error("No identity NFT detected", { id: tid });
+                navigate("/onboarding");
+                return;
+            }
+
             const signer = await clientToSigner(config, chainId);
             if (!signer) throw new Error("Failed to get signer");
             const contract = new ethers.Contract(addresses.microfinance, microfinanceAbi, signer);
             const principal = ethers.parseEther(amount.toString());
 
-            console.log(`Funding Loan. SC_ID: ${smartContractId}, borrower: ${borrowerWallet}`);
-
+            toast.loading('Confirm in wallet...', { id: tid });
             let tx;
             if (smartContractId) {
-                // If the loan request exists on-chain, fund it directly
-                console.log(`[Blockchain] Calling fundLoan(${smartContractId})`);
                 tx = await contract.fundLoan(smartContractId, { value: principal });
             } else {
-                // Fallback: Create and fund in one step if not already on-chain
-                console.log(`[Blockchain] Calling createLoan for borrower ${borrowerWallet}`);
                 const repaymentAmount = ethers.parseEther(((amount * (100 + interestRate)) / 100).toString());
                 const durationInSeconds = durationMonths * 30 * 24 * 60 * 60;
                 tx = await contract.createLoan(borrowerWallet, repaymentAmount, durationInSeconds, { value: principal });
             }
 
-            setTxHash(tx.hash);
-
-            setMessage('Transaction submitted! Waiting for block confirmation...');
+            toast.loading('Mining transaction...', { id: tid });
             await tx.wait();
 
-            setMessage('Loan Funded on Blockchain! Syncing records...');
-
-            // Sync with backend
+            toast.loading('Synchronizing state...', { id: tid });
             await axios.put(`http://localhost:5000/api/loans/${loanId}/fund`, {
                 lenderId: userProfile._id
             }, {
                 headers: { Authorization: `Bearer ${token || userProfile.token}` }
             });
 
-            setMessage('Transaction Successful! Loan is now active.');
+            toast.success('Capital deployed successfully!', { id: tid });
             fetchLoans();
         } catch (error) {
-            console.error(error);
-            setMessage('Funding failed: ' + parseBlockchainError(error));
+            toast.error(parseBlockchainError(error), { id: tid });
         } finally {
             setActionLoading(null);
         }
     };
 
     return (
-        <div className="p-8 max-w-6xl mx-auto">
-            <h1 className="text-3xl font-bold text-white mb-2">Lender Dashboard</h1>
-            <p className="text-slate-400 mb-8">Deploy your capital to secure, overcollateralized Web3 loan requests.</p>
-
-            {message && (
-                <div className={`p-4 rounded-lg mb-8 text-sm max-w-3xl ${message.includes('failed') || message.includes('Error') ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'} border border-opacity-20 shadow-lg`}>
-                    {message}
-                    {txHash && <div className="mt-2 font-mono text-[10px] opacity-70 break-all">Tx: {txHash}</div>}
+        <div className="space-y-10">
+            <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                <div>
+                    <h1 className="text-3xl font-black text-white">Marketplace</h1>
+                    <p className="text-slate-500 font-medium italic">Deploy capital into verified, peer-to-peer overcollateralized loans.</p>
                 </div>
-            )}
-
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-white">Live Market Opportunities</h2>
-                <button onClick={fetchLoans} className="text-fintech-accent text-sm hover:underline flex items-center gap-2">
-                    <span className="animate-spin-slow">🔄</span> Refresh Market
+                <button
+                    onClick={fetchLoans}
+                    className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-white transition-colors border border-slate-800 px-4 py-2 rounded-lg"
+                >
+                    <FiSearch className={loading ? 'animate-spin' : ''} />
+                    Sync Protocol
                 </button>
-            </div>
+            </header>
 
             {loading ? (
-                <div className="text-center py-10 text-slate-400">Scanning protocol for requests...</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {[1, 2, 3].map(i => (
+                        <div key={i} className="premium-card animate-pulse h-80 bg-slate-800/20"></div>
+                    ))}
+                </div>
             ) : loans.length === 0 ? (
-                <div className="bg-fintech-dark border border-fintech-border rounded-xl p-10 text-center text-slate-400">
-                    No pending loan requests in the market right now. Check back later!
+                <div className="premium-card text-center py-20 space-y-4">
+                    <FiInfo className="mx-auto text-slate-700" size={48} />
+                    <p className="text-slate-500 font-medium">Market is currently synchronized. No active requests.</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {loans.map((loan) => (
-                        <div key={loan._id} className="bg-fintech-card p-6 rounded-2xl border border-fintech-border shadow-2xl flex flex-col justify-between hover:border-emerald-500/50 transition-all duration-500 group relative overflow-hidden">
-                            {/* Glow Effect */}
-                            <div className="absolute -top-24 -right-24 w-48 h-48 bg-emerald-500/5 blur-[80px] group-hover:bg-emerald-500/10 transition-colors duration-500"></div>
-
-                            <div className="relative z-10">
-                                <div className="flex justify-between items-start mb-6">
+                        <div key={loan._id} className="premium-card flex flex-col justify-between border-l-4 border-l-emerald-500/50 hover:border-l-emerald-500 transition-all duration-500">
+                            <div>
+                                <div className="flex justify-between items-start mb-8">
                                     <div className="space-y-1">
-                                        <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest">Opportunity</p>
-                                        <h3 className="text-3xl font-extrabold text-white tracking-tight">
-                                            {loan.amountRequested} <span className="text-slate-500 text-sm font-normal">MATIC</span>
-                                        </h3>
+                                        <p className="text-[10px] uppercase font-black tracking-widest text-slate-500">Capital Required</p>
+                                        <h3 className="text-3xl font-black text-white">{loan.amountRequested} <span className="text-sm font-normal text-slate-500">MATIC</span></h3>
                                     </div>
-                                    <div className="bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20 backdrop-blur-md">
-                                        <span className="text-emerald-400 font-bold text-xs">{loan.interestRate}% APY</span>
-                                    </div>
+                                    <span className="bg-emerald-500/10 text-emerald-500 text-[10px] px-3 py-1 rounded-full font-black uppercase tracking-tighter border border-emerald-500/20">
+                                        {loan.interestRate}% APY
+                                    </span>
                                 </div>
 
                                 <div className="space-y-4 mb-8">
-                                    <div className="flex items-center justify-between p-3 bg-fintech-dark/50 rounded-xl border border-fintech-border/30">
-                                        <div className="flex items-center gap-3">
-                                            <div className="p-2 bg-emerald-500/20 rounded-lg">
-                                                <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.040L3 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622l-1.382-.224z" /></svg>
-                                            </div>
-                                            <span className="text-slate-300 text-sm">Borrower Trust Score</span>
+                                    <div className="flex items-center justify-between p-3 bg-fintech-dark rounded-xl border border-fintech-border">
+                                        <div className="flex items-center gap-2">
+                                            <FiTrendingUp className="text-slate-500" />
+                                            <span className="text-[10px] uppercase font-black tracking-widest text-slate-400">Trust Index</span>
                                         </div>
                                         <div className="flex flex-col items-end">
-                                            <span className="text-emerald-400 font-black text-lg">{loan.onChainTrustScore}</span>
+                                            <span className="text-white font-black">{loan.onChainTrustScore}</span>
                                             <div className="flex gap-1">
-                                                {loan.onChainTrustScore >= 300 && <span className="bg-blue-500/20 text-blue-400 text-[8px] px-1 py-0.5 rounded font-black uppercase tracking-tighter border border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.2)]">Highly Trusted</span>}
-                                                {loan.onChainTrustScore >= 100 && loan.onChainTrustScore < 300 && <span className="bg-emerald-500/20 text-emerald-400 text-[8px] px-1 py-0.5 rounded font-black uppercase tracking-tighter border border-emerald-500/30">Trusted</span>}
+                                                {loan.onChainTrustScore >= 300 && <span className="bg-blue-500/10 text-blue-500 text-[8px] px-1 rounded font-black uppercase tracking-tighter shadow-[0_0_10px_rgba(37,99,235,0.1)]">Elite</span>}
+                                                {loan.onChainTrustScore >= 100 && <span className="bg-emerald-500/10 text-emerald-500 text-[8px] px-1 rounded font-black uppercase tracking-tighter">Verified</span>}
                                             </div>
                                         </div>
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div className="p-3 bg-fintech-dark/30 rounded-xl border border-fintech-border/20">
-                                            <p className="text-slate-500 text-[10px] uppercase font-bold mb-1">Projected Return</p>
-                                            <p className="text-white font-bold text-sm">
-                                                +{(loan.amountRequested * (loan.interestRate / 100)).toFixed(4)} <span className="text-[10px] text-slate-500">MATIC</span>
-                                            </p>
+                                        <div className="p-3 bg-fintech-dark rounded-xl border border-fintech-border">
+                                            <p className="text-[9px] uppercase font-black tracking-widest text-slate-500 mb-1">Return</p>
+                                            <p className="text-emerald-500 font-black">+{(loan.amountRequested * (loan.interestRate / 100)).toFixed(3)}</p>
                                         </div>
-                                        <div className="p-3 bg-fintech-dark/30 rounded-xl border border-fintech-border/20">
-                                            <p className="text-slate-500 text-[10px] uppercase font-bold mb-1">Duration</p>
-                                            <p className="text-white font-bold text-sm">{loan.durationMonths} Months</p>
+                                        <div className="p-3 bg-fintech-dark rounded-xl border border-fintech-border">
+                                            <p className="text-[9px] uppercase font-black tracking-widest text-slate-500 mb-1">Term</p>
+                                            <p className="text-white font-black">{loan.durationMonths}m</p>
                                         </div>
                                     </div>
-                                </div>
 
-                                <div className="bg-fintech-dark/20 p-4 rounded-xl border border-dashed border-fintech-border/50 mb-6">
-                                    <p className="text-slate-500 text-[10px] uppercase font-bold mb-2">Purpose</p>
-                                    <p className="text-slate-300 text-xs italic line-clamp-2 leading-relaxed">
-                                        "{loan.purpose}"
-                                    </p>
+                                    <div className="p-4 bg-slate-900/50 rounded-xl border border-dashed border-slate-800">
+                                        <p className="text-[9px] uppercase font-black tracking-widest text-slate-600 mb-2">Borrower Rationale</p>
+                                        <p className="text-slate-400 text-xs italic line-clamp-2 leading-relaxed font-medium">"{loan.purpose}"</p>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="space-y-4">
-                                <TransactionAccordion txHash={loan.simulatedSmartContractId ? `On-chain ID: ${loan.simulatedSmartContractId}` : null} />
-
+                            <div className="space-y-4 pt-4 border-t border-fintech-border/30">
+                                <TransactionAccordion txHash={loan.simulatedSmartContractId ? `Protocol ID: ${loan.simulatedSmartContractId}` : null} />
                                 <button
                                     onClick={() => handleFundLoan(loan._id, loan.simulatedSmartContractId, loan.borrower?.walletAddress, loan.amountRequested, loan.interestRate, loan.durationMonths)}
                                     disabled={actionLoading === loan._id}
-                                    className={`w-full font-black py-4 rounded-xl transition-all shadow-xl flex items-center justify-center gap-2 ${actionLoading === loan._id
-                                        ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
-                                        : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-500/10'
-                                        }`}
+                                    className="btn-primary w-full py-4 text-xs font-black uppercase tracking-[0.2em]"
                                 >
-                                    {actionLoading === loan._id ? (
-                                        <><FiLoader className="animate-spin" /> Executing Transaction...</>
-                                    ) : (
-                                        'Invest Now via Protocol'
-                                    )}
+                                    {actionLoading === loan._id ? <FiLoader className="animate-spin inline mr-2" /> : 'Deploy Capital'}
                                 </button>
                             </div>
                         </div>
@@ -257,4 +225,3 @@ const LenderDashboard = () => {
 };
 
 export default LenderDashboard;
-

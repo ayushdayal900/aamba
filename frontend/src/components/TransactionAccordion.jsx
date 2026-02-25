@@ -6,31 +6,36 @@ const TransactionAccordion = ({ txHash }) => {
 
     if (!txHash) return null;
 
+    // Check if it's a full tx hash or a protocol ID
+    const isHash = txHash.startsWith('0x');
+
     return (
-        <div className="mt-4 border border-fintech-border rounded-lg overflow-hidden bg-fintech-dark/30">
+        <div className="border border-slate-900 rounded-xl overflow-hidden bg-slate-950/50">
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex items-center justify-between p-3 text-xs font-mono text-slate-400 hover:text-white transition-colors"
+                className="w-full flex items-center justify-between p-4 text-[10px] uppercase font-black tracking-widest text-slate-500 hover:text-white transition-colors"
             >
                 <div className="flex items-center gap-2">
-                    <FiHash className="text-fintech-accent" />
-                    <span>Blockchain Evidence</span>
+                    <FiHash className="text-blue-500" />
+                    <span>Protocol Proof</span>
                 </div>
-                <FiChevronDown className={`transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
+                <FiChevronDown className={`transition-transform duration-500 ${isOpen ? 'rotate-180' : ''}`} />
             </button>
 
-            <div className={`transition-all duration-300 ease-in-out ${isOpen ? 'max-h-24' : 'max-h-0'}`}>
-                <div className="p-3 pt-0 border-t border-fintech-border/50">
-                    <div className="flex items-center justify-between text-[10px] text-slate-500">
-                        <span className="truncate max-w-[200px]">{txHash}</span>
-                        <a
-                            href={`https://sepolia.etherscan.io/tx/${txHash}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-fintech-accent hover:underline"
-                        >
-                            View on Etherscan <FiExternalLink size={10} />
-                        </a>
+            <div className={`transition-all duration-500 ease-in-out ${isOpen ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
+                <div className="p-4 pt-0">
+                    <div className="p-3 bg-slate-900 rounded-lg flex items-center justify-between gap-4">
+                        <span className="truncate font-mono text-[10px] text-slate-400">{txHash}</span>
+                        {isHash && (
+                            <a
+                                href={`https://sepolia.etherscan.io/tx/${txHash}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-shrink-0 flex items-center gap-1 text-[10px] text-blue-500 font-bold hover:text-blue-400 transition-colors uppercase tracking-tighter"
+                            >
+                                Explorer <FiExternalLink size={10} />
+                            </a>
+                        )}
                     </div>
                 </div>
             </div>

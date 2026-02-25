@@ -4,43 +4,39 @@ import { motion } from 'framer-motion';
 import {
     FiUser,
     FiShield,
-    FiMail,
-    FiPocket,
-    FiCheckCircle,
     FiAward,
     FiActivity,
+    FiExternalLink,
     FiCopy,
-    FiExternalLink
+    FiStar
 } from 'react-icons/fi';
-import { useAccount, useConfig } from 'wagmi';
+import { useAccount } from 'wagmi';
 import { checkIdentityOwnership } from '../blockchainService';
 import addresses from '../contracts/addresses.json';
 import trustScoreAbi from '../contracts/TrustScoreRegistry.json';
 import { ethers } from 'ethers';
+import toast from 'react-hot-toast';
 
 const IDENTITY_CONTRACT_ADDRESS = addresses.identity;
 
 const Profile = () => {
     const { userProfile } = useAuth();
-    const { address, isConnected } = useAccount();
-    const config = useConfig();
+    const { address } = useAccount();
 
     const [hasNft, setHasNft] = useState(false);
     const [nftLoading, setNftLoading] = useState(true);
     const [onChainTrustScore, setOnChainTrustScore] = useState(0);
 
-    const role = localStorage.getItem("userRole") || userProfile?.role || 'Unassigned';
-    const walletAddr = address || localStorage.getItem("walletAddress") || userProfile?.walletAddress;
+    const role = userProfile?.role || 'User';
+    const walletAddr = address || userProfile?.walletAddress;
 
     useEffect(() => {
         const fetchChainData = async () => {
             if (walletAddr) {
                 try {
-                    // Check NFT Ownership
                     const owned = await checkIdentityOwnership(walletAddr);
                     setHasNft(owned);
 
-                    // Fetch On-Chain Trust Score
                     const provider = new ethers.JsonRpcProvider("https://ethereum-sepolia-rpc.publicnode.com");
                     const trustContract = new ethers.Contract(addresses.trustScore, trustScoreAbi, provider);
                     const score = await trustContract.getTrustScore(walletAddr);
@@ -60,168 +56,136 @@ const Profile = () => {
         return () => clearInterval(interval);
     }, [walletAddr]);
 
-    const copyToClipboard = (text) => {
-        navigator.clipboard.writeText(text);
-        // Could add a toast here
-    };
-
-    const StatusBadge = ({ status, type }) => {
-        let colors = "bg-slate-800 text-slate-400"; // Gray = Pending
-        if (type === 'verified') colors = "bg-green-500/20 text-green-400 border border-green-500/30";
-        if (type === 'on-chain') colors = "bg-blue-500/20 text-blue-400 border border-blue-500/30";
-
-        return (
-            <span className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest ${colors}`}>
-                {status}
-            </span>
-        );
+    const copyAddress = (addr) => {
+        navigator.clipboard.writeText(addr);
+        toast.success("Address copied to clipboard");
     };
 
     return (
-        <div className="min-h-screen bg-fintech-dark pt-24 pb-12 px-6">
-            <div className="max-w-4xl mx-auto">
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6"
-                >
-                    <div>
-                        <h1 className="text-4xl font-black text-white mb-2">Protocol Profile</h1>
-                        <p className="text-slate-400">Manage your decentralized identity and trust parameters.</p>
+        <div className="space-y-12">
+            <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                <div>
+                    <h1 className="text-3xl font-black text-white">Protocol Profile</h1>
+                    <p className="text-slate-500 font-medium">Your decentralized identity and reputation across the Aamba network.</p>
+                </div>
+                <div className="bg-fintech-surface border border-fintech-border px-6 py-4 rounded-2xl flex items-center gap-6">
+                    <div className="text-right">
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">On-Chain Reputation</p>
+                        <p className="text-2xl font-black text-white">{onChainTrustScore}</p>
                     </div>
-                    <div className="flex flex-col md:flex-row gap-4">
-                        <div className="bg-fintech-card border border-fintech-border px-6 py-4 rounded-2xl flex items-center gap-4 shadow-xl">
-                            <div className="relative">
-                                <FiAward className="text-fintech-warning" size={32} />
-                                <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-fintech-card"></div>
-                            </div>
-                            <div>
-                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">On-Chain Reputation</p>
-                                <div className="flex items-center gap-3">
-                                    <p className="text-2xl font-black text-white">{onChainTrustScore}</p>
-                                    <div className="flex gap-1">
-                                        {onChainTrustScore >= 300 && <span className="bg-blue-500/20 text-blue-400 text-[8px] px-1.5 py-0.5 rounded font-black uppercase tracking-tighter border border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.2)]">Highly Trusted</span>}
-                                        {onChainTrustScore >= 100 && onChainTrustScore < 300 && <span className="bg-emerald-500/20 text-emerald-400 text-[8px] px-1.5 py-0.5 rounded font-black uppercase tracking-tighter border border-emerald-500/30">Trusted</span>}
-                                        {onChainTrustScore < 100 && <span className="bg-slate-500/20 text-slate-400 text-[8px] px-1.5 py-0.5 rounded font-black uppercase tracking-tighter border border-slate-500/30">New Pilot</span>}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </motion.div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {/* Left Column: Primary Identity */}
-                    <div className="md:col-span-2 space-y-8">
-                        <div className="bg-fintech-card border border-fintech-border rounded-[2rem] p-8 relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-fintech-accent/5 rounded-bl-full"></div>
-
-                            <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                                <FiUser className="text-fintech-accent" /> Basic Information
-                            </h3>
-
-                            <div className="space-y-6">
-                                <div>
-                                    <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-2">Account Name</label>
-                                    <p className="text-lg text-white font-semibold">{userProfile?.name || 'Protocol User'}</p>
-                                </div>
-
-                                <div>
-                                    <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-2">Email Address</label>
-                                    <div className="flex items-center gap-3">
-                                        <p className="text-lg text-white font-semibold">{userProfile?.email || 'N/A'}</p>
-                                        <StatusBadge status="Verified" type="verified" />
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-2">Protocol Role</label>
-                                    <div className="flex items-center gap-3">
-                                        <FiActivity className="text-fintech-accent" />
-                                        <p className="text-lg text-white font-bold">{role}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-fintech-card border border-fintech-border rounded-[2rem] p-8">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                                    <FiAward className="text-fintech-accent" /> Reputation Growth
-                                </h3>
-                                <span className="text-xs font-mono text-slate-500">Tier: {onChainTrustScore >= 300 ? 'Gold' : onChainTrustScore >= 100 ? 'Silver' : 'Bronze'}</span>
-                            </div>
-
-                            <div className="space-y-6">
-                                <div>
-                                    <div className="flex justify-between text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-3">
-                                        <span>Trust Score Progress</span>
-                                        <span>{onChainTrustScore}/1000</span>
-                                    </div>
-                                    <div className="h-4 w-full bg-fintech-dark rounded-full p-1 border border-fintech-border relative overflow-hidden">
-                                        <motion.div
-                                            initial={{ width: 0 }}
-                                            animate={{ width: `${(onChainTrustScore / 1000) * 100}%` }}
-                                            className="h-full bg-gradient-to-r from-blue-600 to-emerald-500 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.3)]"
-                                        />
-                                    </div>
-                                    <p className="mt-4 text-xs text-slate-500 italic">Scores are minted on-chain after successful financial milestones.</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Right Column: NFT & Contracts */}
-                    <div className="space-y-8">
-                        <div className="bg-fintech-card border border-fintech-border rounded-[2rem] p-8 text-center relative group">
-                            <div className="absolute inset-0 bg-fintech-accent/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-
-                            <div className="relative z-10">
-                                <div className={`w-24 h-24 mx-auto mb-6 rounded-3xl flex items-center justify-center border-2 transition-all duration-700 ${hasNft ? 'bg-fintech-accent/20 border-fintech-accent text-fintech-accent shadow-[0_0_30px_rgba(59,130,246,0.3)]' : 'bg-slate-800/50 border-slate-700 text-slate-600'}`}>
-                                    <FiShield size={48} />
-                                </div>
-                                <h4 className="text-xl font-bold text-white mb-2">Soulbound ID</h4>
-                                <p className="text-sm text-slate-500 mb-6">Non-transferable on-chain identity token.</p>
-
-                                {nftLoading ? (
-                                    <div className="flex justify-center"><FiActivity className="animate-spin text-fintech-accent" /></div>
-                                ) : (
-                                    <StatusBadge
-                                        status={hasNft ? "Verified on Ethereum" : "Not Minted"}
-                                        type={hasNft ? "on-chain" : "pending"}
-                                    />
-                                )}
-
-                                {hasNft && (
-                                    <div className="mt-6 flex justify-center">
-                                        <a
-                                            href={`https://sepolia.etherscan.io/address/${IDENTITY_CONTRACT_ADDRESS}`}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="text-xs text-fintech-accent flex items-center gap-2 hover:underline"
-                                        >
-                                            View Contract <FiExternalLink />
-                                        </a>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="bg-fintech-card border border-fintech-border rounded-[2rem] p-8">
-                            <h4 className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-6">Protocol Anchors</h4>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="text-[9px] text-slate-600 font-bold uppercase block mb-1">Identity Protocol</label>
-                                    <p className="text-[10px] font-mono text-slate-400 break-all bg-fintech-dark/50 p-2 rounded-lg">{IDENTITY_CONTRACT_ADDRESS}</p>
-                                </div>
-                                <div>
-                                    <label className="text-[9px] text-slate-600 font-bold uppercase block mb-1">Aamba Core v1.0</label>
-                                    <p className="text-[10px] font-mono text-slate-400 break-all bg-fintech-dark/50 p-2 rounded-lg">Coming Soon</p>
-                                </div>
-                            </div>
-                        </div>
+                    <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-500 shadow-lg shadow-blue-500/10">
+                        <FiAward size={24} />
                     </div>
                 </div>
+            </header>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                <div className="lg:col-span-2 space-y-10">
+                    <section className="premium-card relative overflow-hidden">
+                        <div className="flex items-center gap-3 text-slate-400 mb-8">
+                            <FiUser className="text-blue-500" />
+                            <span className="text-[10px] uppercase font-bold tracking-widest text-slate-500">Identity Details</span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                            <div>
+                                <label className="block text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2">Legal Identifier</label>
+                                <p className="text-xl font-bold text-white mb-1">{userProfile?.name || 'Protocol User'}</p>
+                                <p className="text-xs text-slate-500 font-medium">{userProfile?.email}</p>
+                            </div>
+
+                            <div>
+                                <label className="block text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2">Wallet Anchor</label>
+                                <div className="flex items-center gap-2">
+                                    <p className="font-mono text-sm text-slate-300 truncate max-w-[180px]">{walletAddr}</p>
+                                    <button onClick={() => copyAddress(walletAddr)} className="p-1.5 hover:bg-slate-800 rounded-md text-slate-500 hover:text-white transition-colors">
+                                        <FiCopy size={14} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2">Protocol Access</label>
+                                <div className="flex items-center gap-3">
+                                    <FiActivity className="text-emerald-500" />
+                                    <p className="text-lg font-black text-white uppercase tracking-tighter">{role}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section className="premium-card">
+                        <div className="flex items-center justify-between mb-10">
+                            <div className="flex items-center gap-3">
+                                <FiStar className="text-blue-500" />
+                                <span className="text-[10px] uppercase font-bold tracking-widest text-slate-500">Trust Progression</span>
+                            </div>
+                            <span className="bg-slate-800 text-slate-400 text-[9px] px-3 py-1 rounded-full font-black uppercase tracking-widest">
+                                Tier: {onChainTrustScore >= 300 ? 'Gold Elite' : onChainTrustScore >= 100 ? 'Silver Verified' : 'Bronze Pilot'}
+                            </span>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="flex justify-between text-xs font-bold uppercase tracking-tighter text-slate-500">
+                                <span>Network Strength</span>
+                                <span>{onChainTrustScore} / 1000 pts</span>
+                            </div>
+                            <div className="h-4 w-full bg-fintech-dark rounded-full p-1 border border-fintech-border relative">
+                                <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${(onChainTrustScore / 1000) * 100}%` }}
+                                    className="h-full bg-gradient-to-r from-blue-600 to-blue-400 rounded-full shadow-[0_0_20px_rgba(37,99,235,0.2)]"
+                                />
+                            </div>
+                            <p className="text-[10px] text-slate-500 font-medium italic">Your score is updated on-chain automatically following successful repayments and protocol participation.</p>
+                        </div>
+                    </section>
+                </div>
+
+                <aside className="space-y-10">
+                    <div className="premium-card text-center py-10">
+                        <div className={`w-28 h-28 mx-auto mb-8 rounded-[2rem] flex items-center justify-center border-2 transition-all duration-1000 ${hasNft ? 'bg-blue-500/10 border-blue-500/50 text-blue-500 shadow-[0_0_40px_rgba(37,99,235,0.15)]' : 'bg-slate-900 border-slate-800 text-slate-700'}`}>
+                            <FiShield size={56} />
+                        </div>
+                        <h4 className="text-2xl font-black text-white mb-2 italic">Soulbound ID</h4>
+                        <p className="text-xs text-slate-500 font-medium mb-8">Non-transferable Protocol Identity Token</p>
+
+                        {nftLoading ? (
+                            <FiActivity className="animate-spin mx-auto text-blue-500" />
+                        ) : (
+                            <div className={`inline-flex items-center gap-2 px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] ${hasNft ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-slate-800 text-slate-500'}`}>
+                                {hasNft ? <><FiShield /> Verified</> : 'Not Detected'}
+                            </div>
+                        )}
+
+                        {hasNft && (
+                            <div className="mt-8">
+                                <a
+                                    href={`https://sepolia.etherscan.io/address/${IDENTITY_CONTRACT_ADDRESS}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-[10px] text-blue-500 font-black uppercase tracking-widest hover:text-blue-400 transition-colors flex items-center justify-center gap-2"
+                                >
+                                    Etherscan <FiExternalLink />
+                                </a>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="premium-card space-y-6">
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Protocol Registry</p>
+                        <div className="space-y-4">
+                            <div>
+                                <p className="text-[9px] text-slate-600 font-bold uppercase mb-1">Identity Gateway</p>
+                                <p className="text-[10px] font-mono text-slate-400 bg-fintech-dark p-2 rounded-lg truncate">{addresses.identity}</p>
+                            </div>
+                            <div>
+                                <p className="text-[9px] text-slate-600 font-bold uppercase mb-1">Reputation Engine</p>
+                                <p className="text-[10px] font-mono text-slate-400 bg-fintech-dark p-2 rounded-lg truncate">{addresses.trustScore}</p>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
             </div>
         </div>
     );

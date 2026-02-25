@@ -1,21 +1,73 @@
 @import "tailwindcss";
 
 @theme {
-  --color-fintech-dark: #0f172a;
+  --color-fintech-dark: #020617; /* Slasher ink dark */
+  --color-fintech-surface: #0f172a;
   --color-fintech-card: #1e293b;
-  --color-fintech-accent: #3b82f6;
+  --color-fintech-accent: #2563eb; /* Stronger blue */
   --color-fintech-success: #10b981;
   --color-fintech-warning: #f59e0b;
-  --color-fintech-border: #334155;
-  --font-sans: 'Inter', sans-serif;
+  --color-fintech-border: #1e293b;
+  --color-fintech-muted: #64748b;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  
+  --shadow-premium: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-premium-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
 }
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  
   body {
     background-color: var(--color-fintech-dark);
-    color: #e2e8f0;
-    /* slate-200 */
+    color: #f1f5f9; /* slate-100 */
     font-family: var(--font-sans);
-    letter-spacing: -0.015em;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
   }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: #ffffff;
+  }
+}
+
+@layer components {
+  .premium-card {
+    @apply bg-fintech-surface border border-fintech-border rounded-xl shadow-premium p-6 transition-all duration-300;
+  }
+  
+  .premium-card:hover {
+    @apply border-fintech-accent/30 shadow-premium-xl;
+  }
+
+  .btn-primary {
+    @apply bg-fintech-accent hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100;
+  }
+  
+  .sidebar-link {
+    @apply flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all duration-200;
+  }
+  
+  .sidebar-link.active {
+    @apply bg-fintech-accent/10 text-fintech-accent border border-fintech-accent/20;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-fintech-dark);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-fintech-border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-fintech-muted);
 }

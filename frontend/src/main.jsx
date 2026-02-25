@@ -45,18 +45,27 @@ const config = getDefaultConfig({
 
 const queryClient = new QueryClient();
 
+import { Toaster } from 'react-hot-toast';
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <RainbowKitProvider theme={darkTheme({
-            accentColor: '#3b82f6',
+            accentColor: '#2563eb', // New Stronger Blue
             accentColorForeground: 'white',
-            borderRadius: 'medium',
+            borderRadius: 'large',
             fontStack: 'system',
             overlayBlur: 'small',
           })}>
+            <Toaster position="top-right" toastOptions={{
+              style: {
+                background: '#1e293b',
+                color: '#fff',
+                border: '1px solid #334155',
+              },
+            }} />
             <App />
           </RainbowKitProvider>
         </AuthProvider>
