@@ -40,6 +40,14 @@ const loanRequestSchema = new mongoose.Schema({
         type: String,
         default: null, // Populated when the loan moves to Funded/Active
     },
+    fundingTxHash: {
+        type: String,
+        default: null,
+    },
+    repaymentTxHash: {
+        type: String,
+        default: null,
+    },
     insuranceActivated: {
         type: Boolean,
         default: false,

@@ -26,7 +26,7 @@ contract Microfinance is ReentrancyGuard {
     mapping(uint256 => Loan) public loans;
 
     // Events for tracking loan lifecycle
-    event LoanCreated(uint256 indexed loanId, address indexed lender, address indexed borrower, uint256 amount, uint256 repaymentAmount);
+    event LoanCreated(uint256 indexed loanId, address indexed lender, address indexed borrower, uint256 amount, uint256 repaymentAmount, uint256 duration);
     event LoanFunded(uint256 indexed loanId, address indexed lender, uint256 startTime);
     event LoanRepaid(uint256 indexed loanId, address indexed borrower, uint256 amount);
 
@@ -42,10 +42,59 @@ contract Microfinance is ReentrancyGuard {
     error Loan_AlreadyRepaid();
 
     /**
-     * @dev Lenders call this to create and fund a loan for a specific borrower.
-     * @param borrower The address of the borrower receiving the funds.
-     * @param repaymentAmount Total amount to be repaid to the lender.
-     * @param duration Estimated time for repayment (in seconds).
+     * @dev Borrowers call this to request a loan on-chain.
+     * @param amount The principal amount requested.
+     * @param repaymentAmount The total amount (principal + interest) to be repaid.
+     * @param duration The loan duration in seconds.
+     */
+    function requestLoan(uint256 amount, uint256 repaymentAmount, uint256 duration) external returns (uint256) {
+        if (amount == 0) revert Loan_InvalidAmount();
+        if (repaymentAmount <= amount) revert Loan_InvalidRepayment();
+
+        _loanCount++;
+        uint256 loanId = _loanCount;
+
+        loans[loanId] = Loan({
+            loanId: loanId,
+            borrower: msg.sender,
+            lender: payable(address(0)),
+            amount: amount,
+            repaymentAmount: repaymentAmount,
+            duration: duration,
+            startTime: 0,
+            repaid: false,
+            active: false
+        });
+
+        emit LoanCreated(loanId, address(0), msg.sender, amount, repaymentAmount, duration);
+        return loanId;
+    }
+
+    /**
+     * @dev Lenders call this to fund a specific loan request.
+     * The funding amount must match the loan's original requested amount.
+     * @param loanId The ID of the loan to fund.
+     */
+    function fundLoan(uint256 loanId) external payable nonReentrant {
+        Loan storage loan = loans[loanId];
+
+        if (loan.loanId == 0) revert Loan_DoesNotExist();
+        if (loan.active || loan.lender != address(0)) revert Loan_AlreadyFunded();
+        if (msg.value != loan.amount) revert Loan_InsufficientFunds();
+
+        loan.lender = payable(msg.sender);
+        loan.startTime = block.timestamp;
+        loan.active = true;
+
+        // Transfer the funding from the lender directly to the borrower
+        (bool success, ) = payable(loan.borrower).call{value: msg.value}("");
+        require(success, "Transfer to borrower failed");
+
+        emit LoanFunded(loanId, msg.sender, block.timestamp);
+    }
+
+    /**
+     * @dev Lenders call this to create AND fund a loan for a specific borrower in one step.
      */
     function createLoan(address borrower, uint256 repaymentAmount, uint256 duration) external payable returns (uint256) {
         if (msg.value == 0) revert Loan_InvalidAmount();
@@ -71,34 +120,9 @@ contract Microfinance is ReentrancyGuard {
         (bool success, ) = payable(borrower).call{value: msg.value}("");
         require(success, "Transfer to borrower failed");
 
-        emit LoanCreated(loanId, msg.sender, borrower, msg.value, repaymentAmount);
+        emit LoanCreated(loanId, msg.sender, borrower, msg.value, repaymentAmount, duration);
         emit LoanFunded(loanId, msg.sender, block.timestamp);
         return loanId;
-    }
-
-
-
-    /**
-     * @dev Lenders call this to fund a specific loan request.
-     * The funding amount must match the loan's original requested amount.
-     * @param loanId The ID of the loan to fund.
-     */
-    function fundLoan(uint256 loanId) external payable nonReentrant {
-        Loan storage loan = loans[loanId];
-
-        if (loan.loanId == 0) revert Loan_DoesNotExist();
-        if (loan.active || loan.lender != address(0)) revert Loan_AlreadyFunded();
-        if (msg.value != loan.amount) revert Loan_InsufficientFunds();
-
-        loan.lender = payable(msg.sender);
-        loan.startTime = block.timestamp;
-        loan.active = true;
-
-        // Transfer the funding from the lender to the borrower
-        (bool success, ) = payable(loan.borrower).call{value: msg.value}("");
-        require(success, "Transfer to borrower failed");
-
-        emit LoanFunded(loanId, msg.sender, block.timestamp);
     }
 
     /**

@@ -7,6 +7,9 @@ import { getConnectorClient } from '@wagmi/core';
 
 import addresses from '../contracts/addresses.json';
 import microfinanceAbi from '../contracts/Microfinance.json';
+import trustScoreAbi from '../contracts/TrustScoreRegistry.json';
+import { parseBlockchainError, checkIdentityOwnership } from '../blockchainService';
+import TransactionAccordion from '../components/TransactionAccordion';
 
 // Helper to convert wagmi client to ethers signer
 async function clientToSigner(config, chainId) {
@@ -35,13 +38,46 @@ const LenderDashboard = () => {
 
     useEffect(() => {
         fetchLoans();
-    }, []);
+        verifyIdentity();
+    }, [walletAddress]);
+
+    const verifyIdentity = async () => {
+        if (walletAddress) {
+            const hasNFT = await checkIdentityOwnership(walletAddress);
+            if (!hasNFT && localStorage.getItem("isOnboarded") === "true") {
+                // If local storage says onboarded but chain says no, reset and redirect
+                localStorage.removeItem("isOnboarded");
+                window.location.href = "/onboarding";
+            }
+        }
+    };
 
     const fetchLoans = async () => {
         try {
             const res = await axios.get('http://localhost:5000/api/loans');
             if (res.data.success) {
-                setLoans(res.data.data);
+                const loanData = res.data.data;
+
+                // Enhance loans with direct on-chain trust scores
+                const provider = new ethers.JsonRpcProvider("https://ethereum-sepolia-rpc.publicnode.com");
+                const trustRegistry = new ethers.Contract(addresses.trustScore, trustScoreAbi, provider);
+
+                const enhancedLoans = await Promise.all(loanData.map(async (loan) => {
+                    try {
+                        if (loan.borrower?.walletAddress) {
+                            const onChainScore = await trustRegistry.getTrustScore(loan.borrower.walletAddress);
+                            return {
+                                ...loan,
+                                onChainTrustScore: Number(onChainScore)
+                            };
+                        }
+                    } catch (e) {
+                        console.warn("Failed to fetch on-chain score for", loan.borrower?.walletAddress);
+                    }
+                    return { ...loan, onChainTrustScore: loan.borrower?.trustScore || 0 };
+                }));
+
+                setLoans(enhancedLoans);
             }
         } catch (error) {
             console.error("Error fetching loans:", error);
@@ -50,8 +86,16 @@ const LenderDashboard = () => {
         }
     };
 
-    const handleFundLoan = async (loanId, borrowerWallet, amount, interestRate, durationMonths) => {
+    const handleFundLoan = async (loanId, smartContractId, borrowerWallet, amount, interestRate, durationMonths) => {
         if (!isConnected) return alert("Please connect your wallet first");
+
+        // Strict on-chain identity check
+        const hasIdentity = await checkIdentityOwnership(walletAddress);
+        if (!hasIdentity) {
+            alert("Protocol Access Denied: No Soulbound Identity detected. Redirecting to onboarding...");
+            window.location.href = "/onboarding";
+            return;
+        }
 
         setActionLoading(loanId);
         setTxHash(null);
@@ -61,14 +105,23 @@ const LenderDashboard = () => {
             const signer = await clientToSigner(config, chainId);
             if (!signer) throw new Error("Failed to get signer");
             const contract = new ethers.Contract(addresses.microfinance, microfinanceAbi, signer);
-
-            // Protocol parameters
             const principal = ethers.parseEther(amount.toString());
-            const repaymentAmount = ethers.parseEther(((amount * (100 + interestRate)) / 100).toString());
-            const durationInSeconds = durationMonths * 30 * 24 * 60 * 60;
 
-            console.log(`Funding Loan for borrower: ${borrowerWallet}`);
-            const tx = await contract.createLoan(borrowerWallet, repaymentAmount, durationInSeconds, { value: principal });
+            console.log(`Funding Loan. SC_ID: ${smartContractId}, borrower: ${borrowerWallet}`);
+
+            let tx;
+            if (smartContractId) {
+                // If the loan request exists on-chain, fund it directly
+                console.log(`[Blockchain] Calling fundLoan(${smartContractId})`);
+                tx = await contract.fundLoan(smartContractId, { value: principal });
+            } else {
+                // Fallback: Create and fund in one step if not already on-chain
+                console.log(`[Blockchain] Calling createLoan for borrower ${borrowerWallet}`);
+                const repaymentAmount = ethers.parseEther(((amount * (100 + interestRate)) / 100).toString());
+                const durationInSeconds = durationMonths * 30 * 24 * 60 * 60;
+                tx = await contract.createLoan(borrowerWallet, repaymentAmount, durationInSeconds, { value: principal });
+            }
+
             setTxHash(tx.hash);
 
             setMessage('Transaction submitted! Waiting for block confirmation...');
@@ -87,7 +140,7 @@ const LenderDashboard = () => {
             fetchLoans();
         } catch (error) {
             console.error(error);
-            setMessage('Funding failed: ' + (error.reason || error.message));
+            setMessage('Funding failed: ' + parseBlockchainError(error));
         } finally {
             setActionLoading(null);
         }
@@ -119,45 +172,82 @@ const LenderDashboard = () => {
                     No pending loan requests in the market right now. Check back later!
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {loans.map((loan) => (
-                        <div key={loan._id} className="bg-fintech-card p-6 rounded-xl border border-fintech-border shadow-lg flex flex-col justify-between hover:border-fintech-accent transition-all duration-300 group">
-                            <div>
-                                <div className="flex justify-between items-start mb-4">
-                                    <div>
-                                        <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Request Amount</p>
-                                        <h3 className="text-2xl font-bold text-emerald-400">{loan.amountRequested} MATIC</h3>
+                        <div key={loan._id} className="bg-fintech-card p-6 rounded-2xl border border-fintech-border shadow-2xl flex flex-col justify-between hover:border-emerald-500/50 transition-all duration-500 group relative overflow-hidden">
+                            {/* Glow Effect */}
+                            <div className="absolute -top-24 -right-24 w-48 h-48 bg-emerald-500/5 blur-[80px] group-hover:bg-emerald-500/10 transition-colors duration-500"></div>
+
+                            <div className="relative z-10">
+                                <div className="flex justify-between items-start mb-6">
+                                    <div className="space-y-1">
+                                        <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest">Opportunity</p>
+                                        <h3 className="text-3xl font-extrabold text-white tracking-tight">
+                                            {loan.amountRequested} <span className="text-slate-500 text-sm font-normal">MATIC</span>
+                                        </h3>
                                     </div>
-                                    <div className="bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
-                                        <span className="text-emerald-400 font-semibold text-xs">{loan.interestRate}% APY</span>
+                                    <div className="bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20 backdrop-blur-md">
+                                        <span className="text-emerald-400 font-bold text-xs">{loan.interestRate}% APY</span>
                                     </div>
                                 </div>
 
-                                <p className="text-white text-sm font-medium mb-1">Purpose:</p>
-                                <p className="text-slate-400 text-sm mb-4 line-clamp-2 italic">"{loan.purpose}"</p>
+                                <div className="space-y-4 mb-8">
+                                    <div className="flex items-center justify-between p-3 bg-fintech-dark/50 rounded-xl border border-fintech-border/30">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-emerald-500/20 rounded-lg">
+                                                <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.040L3 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622l-1.382-.224z" /></svg>
+                                            </div>
+                                            <span className="text-slate-300 text-sm">Borrower Trust Score</span>
+                                        </div>
+                                        <div className="flex flex-col items-end">
+                                            <span className="text-emerald-400 font-black text-lg">{loan.onChainTrustScore}</span>
+                                            <div className="flex gap-1">
+                                                {loan.onChainTrustScore >= 300 && <span className="bg-blue-500/20 text-blue-400 text-[8px] px-1 py-0.5 rounded font-black uppercase tracking-tighter border border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.2)]">Highly Trusted</span>}
+                                                {loan.onChainTrustScore >= 100 && loan.onChainTrustScore < 300 && <span className="bg-emerald-500/20 text-emerald-400 text-[8px] px-1 py-0.5 rounded font-black uppercase tracking-tighter border border-emerald-500/30">Trusted</span>}
+                                            </div>
+                                        </div>
+                                    </div>
 
-                                <div className="grid grid-cols-2 gap-4 mb-6 pt-4 border-t border-fintech-border border-dashed">
-                                    <div>
-                                        <p className="text-slate-500 text-[10px] uppercase tracking-tighter">Term</p>
-                                        <p className="text-white text-sm font-medium">{loan.durationMonths} Months</p>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="p-3 bg-fintech-dark/30 rounded-xl border border-fintech-border/20">
+                                            <p className="text-slate-500 text-[10px] uppercase font-bold mb-1">Projected Return</p>
+                                            <p className="text-white font-bold text-sm">
+                                                +{(loan.amountRequested * (loan.interestRate / 100)).toFixed(4)} <span className="text-[10px] text-slate-500">MATIC</span>
+                                            </p>
+                                        </div>
+                                        <div className="p-3 bg-fintech-dark/30 rounded-xl border border-fintech-border/20">
+                                            <p className="text-slate-500 text-[10px] uppercase font-bold mb-1">Duration</p>
+                                            <p className="text-white font-bold text-sm">{loan.durationMonths} Months</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="text-slate-500 text-[10px] uppercase tracking-tighter">Trust Score</p>
-                                        <p className="text-emerald-400 text-sm font-bold flex items-center gap-1">
-                                            {loan.borrower?.trustScore || 0}
-                                            <svg className="w-3 h-3 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" /></svg>
-                                        </p>
-                                    </div>
+                                </div>
+
+                                <div className="bg-fintech-dark/20 p-4 rounded-xl border border-dashed border-fintech-border/50 mb-6">
+                                    <p className="text-slate-500 text-[10px] uppercase font-bold mb-2">Purpose</p>
+                                    <p className="text-slate-300 text-xs italic line-clamp-2 leading-relaxed">
+                                        "{loan.purpose}"
+                                    </p>
                                 </div>
                             </div>
 
-                            <button
-                                onClick={() => handleFundLoan(loan._id, loan.borrower?.walletAddress, loan.amountRequested, loan.interestRate, loan.durationMonths)}
-                                disabled={actionLoading === loan._id}
-                                className={`w-full font-bold py-3 rounded-lg transition-all border ${actionLoading === loan._id ? 'bg-fintech-dark text-slate-500 border-fintech-border cursor-not-allowed' : 'bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-white border-emerald-500/30'}`}
-                            >
-                                {actionLoading === loan._id ? 'Processing...' : 'Accept & Fund Protocol'}
-                            </button>
+                            <div className="space-y-4">
+                                <TransactionAccordion txHash={loan.simulatedSmartContractId ? `On-chain ID: ${loan.simulatedSmartContractId}` : null} />
+
+                                <button
+                                    onClick={() => handleFundLoan(loan._id, loan.simulatedSmartContractId, loan.borrower?.walletAddress, loan.amountRequested, loan.interestRate, loan.durationMonths)}
+                                    disabled={actionLoading === loan._id}
+                                    className={`w-full font-black py-4 rounded-xl transition-all shadow-xl flex items-center justify-center gap-2 ${actionLoading === loan._id
+                                        ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                                        : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-500/10'
+                                        }`}
+                                >
+                                    {actionLoading === loan._id ? (
+                                        <><FiLoader className="animate-spin" /> Executing Transaction...</>
+                                    ) : (
+                                        'Invest Now via Protocol'
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     ))}
                 </div>

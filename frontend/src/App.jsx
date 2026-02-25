@@ -10,13 +10,17 @@ import LandingPage from './pages/LandingPage';
 import SignIn from './pages/SignIn';
 import Signup from './pages/Signup';
 import { useAuth } from './context/AuthContext';
+import { useAccount } from 'wagmi';
+import { checkIdentityOwnership } from './blockchainService';
+import { useState, useEffect } from 'react';
 
-const ProtectedRoute = ({ children, isFullyOnboarded, loading, isAuthenticated }) => {
+const ProtectedRoute = ({ children, isFullyOnboarded, loading, isAuthenticated, isIdentityVerified }) => {
   const isOnboarded = localStorage.getItem("isOnboarded") === "true";
 
   console.log("[Route Guard] Checking access...", {
     isAuthenticated,
     isFullyOnboarded,
+    isIdentityVerified,
     localOnboarded: isOnboarded,
     loading
   });
@@ -37,8 +41,9 @@ const ProtectedRoute = ({ children, isFullyOnboarded, loading, isAuthenticated }
     return <Navigate to="/signin" replace />;
   }
 
-  if (!isFullyOnboarded && !isOnboarded) {
-    console.log("[Route Guard] Not onboarded, redirecting to onboarding");
+  // Strict check: Must be verified on-chain to move past onboarding
+  if (!isIdentityVerified && !isOnboarded) {
+    console.log("[Route Guard] Identity NOT verified on-chain, redirecting to onboarding");
     return <Navigate to="/onboarding" replace />;
   }
 
@@ -46,18 +51,42 @@ const ProtectedRoute = ({ children, isFullyOnboarded, loading, isAuthenticated }
 };
 
 function App() {
-  const { isAuthenticated, userProfile, loading } = useAuth();
+  const { isAuthenticated, userProfile, loading: authLoading } = useAuth();
+  const { address, isConnected } = useAccount();
+  const [isIdentityVerified, setIsIdentityVerified] = useState(false);
+  const [appLoading, setAppLoading] = useState(true);
 
   // Helper to determine if user is fully onboarded
   const localOnboarded = localStorage.getItem("isOnboarded") === "true";
-  const isFullyOnboarded = isAuthenticated && (userProfile?.kycStatus === 'Verified' || localOnboarded);
+
+  useEffect(() => {
+    const verifyIdentity = async () => {
+      if (isConnected && address) {
+        console.log("[App] Verifying Identity on-chain for:", address);
+        const hasNFT = await checkIdentityOwnership(address);
+        setIsIdentityVerified(hasNFT);
+        if (hasNFT) {
+          localStorage.setItem("isOnboarded", "true");
+        }
+      }
+      setAppLoading(false);
+    };
+
+    if (!authLoading) {
+      verifyIdentity();
+    }
+  }, [isConnected, address, authLoading]);
+
+  const combinedLoading = authLoading || appLoading;
+  const isFullyOnboarded = isAuthenticated && (userProfile?.kycStatus === 'Verified' || localOnboarded || isIdentityVerified);
 
   console.log("[App Init] State:", {
     isAuthenticated,
     userProfileRole: userProfile?.role,
-    kycStatus: userProfile?.kycStatus,
+    isIdentityVerified,
     localOnboarded,
-    isFullyOnboarded
+    isFullyOnboarded,
+    combinedLoading
   });
 
   return (
@@ -102,7 +131,8 @@ function App() {
                 <ProtectedRoute
                   isAuthenticated={isAuthenticated}
                   isFullyOnboarded={isFullyOnboarded}
-                  loading={loading}
+                  isIdentityVerified={isIdentityVerified}
+                  loading={combinedLoading}
                 >
                   <Dashboard />
                 </ProtectedRoute>
@@ -114,7 +144,8 @@ function App() {
                 <ProtectedRoute
                   isAuthenticated={isAuthenticated}
                   isFullyOnboarded={isFullyOnboarded}
-                  loading={loading}
+                  isIdentityVerified={isIdentityVerified}
+                  loading={combinedLoading}
                 >
                   <Profile />
                 </ProtectedRoute>
@@ -126,7 +157,8 @@ function App() {
                 <ProtectedRoute
                   isAuthenticated={isAuthenticated}
                   isFullyOnboarded={isFullyOnboarded}
-                  loading={loading}
+                  isIdentityVerified={isIdentityVerified}
+                  loading={combinedLoading}
                 >
                   <Lend />
                 </ProtectedRoute>
@@ -138,7 +170,8 @@ function App() {
                 <ProtectedRoute
                   isAuthenticated={isAuthenticated}
                   isFullyOnboarded={isFullyOnboarded}
-                  loading={loading}
+                  isIdentityVerified={isIdentityVerified}
+                  loading={combinedLoading}
                 >
                   <Borrow />
                 </ProtectedRoute>

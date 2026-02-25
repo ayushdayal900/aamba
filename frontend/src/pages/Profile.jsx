@@ -15,6 +15,8 @@ import {
 import { useAccount, useConfig } from 'wagmi';
 import { checkIdentityOwnership } from '../blockchainService';
 import addresses from '../contracts/addresses.json';
+import trustScoreAbi from '../contracts/TrustScoreRegistry.json';
+import { ethers } from 'ethers';
 
 const IDENTITY_CONTRACT_ADDRESS = addresses.identity;
 
@@ -25,18 +27,26 @@ const Profile = () => {
 
     const [hasNft, setHasNft] = useState(false);
     const [nftLoading, setNftLoading] = useState(true);
+    const [onChainTrustScore, setOnChainTrustScore] = useState(0);
 
     const role = localStorage.getItem("userRole") || userProfile?.role || 'Unassigned';
     const walletAddr = address || localStorage.getItem("walletAddress") || userProfile?.walletAddress;
 
     useEffect(() => {
-        const checkNft = async () => {
+        const fetchChainData = async () => {
             if (walletAddr) {
                 try {
+                    // Check NFT Ownership
                     const owned = await checkIdentityOwnership(walletAddr);
                     setHasNft(owned);
+
+                    // Fetch On-Chain Trust Score
+                    const provider = new ethers.JsonRpcProvider("https://ethereum-sepolia-rpc.publicnode.com");
+                    const trustContract = new ethers.Contract(addresses.trustScore, trustScoreAbi, provider);
+                    const score = await trustContract.getTrustScore(walletAddr);
+                    setOnChainTrustScore(Number(score));
                 } catch (err) {
-                    console.error("NFT Check error:", err);
+                    console.error("Chain Data fetch error:", err);
                 } finally {
                     setNftLoading(false);
                 }
@@ -44,7 +54,10 @@ const Profile = () => {
                 setNftLoading(false);
             }
         };
-        checkNft();
+        fetchChainData();
+
+        const interval = setInterval(fetchChainData, 10000);
+        return () => clearInterval(interval);
     }, [walletAddr]);
 
     const copyToClipboard = (text) => {
@@ -76,12 +89,22 @@ const Profile = () => {
                         <h1 className="text-4xl font-black text-white mb-2">Protocol Profile</h1>
                         <p className="text-slate-400">Manage your decentralized identity and trust parameters.</p>
                     </div>
-                    <div className="flex gap-4">
-                        <div className="bg-fintech-card border border-fintech-border px-6 py-3 rounded-2xl flex items-center gap-3">
-                            <FiAward className="text-fintech-warning" size={24} />
+                    <div className="flex flex-col md:flex-row gap-4">
+                        <div className="bg-fintech-card border border-fintech-border px-6 py-4 rounded-2xl flex items-center gap-4 shadow-xl">
+                            <div className="relative">
+                                <FiAward className="text-fintech-warning" size={32} />
+                                <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-fintech-card"></div>
+                            </div>
                             <div>
-                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Trust Score</p>
-                                <p className="text-xl font-black text-white">{userProfile?.trustScore || 300}</p>
+                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">On-Chain Reputation</p>
+                                <div className="flex items-center gap-3">
+                                    <p className="text-2xl font-black text-white">{onChainTrustScore}</p>
+                                    <div className="flex gap-1">
+                                        {onChainTrustScore >= 300 && <span className="bg-blue-500/20 text-blue-400 text-[8px] px-1.5 py-0.5 rounded font-black uppercase tracking-tighter border border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.2)]">Highly Trusted</span>}
+                                        {onChainTrustScore >= 100 && onChainTrustScore < 300 && <span className="bg-emerald-500/20 text-emerald-400 text-[8px] px-1.5 py-0.5 rounded font-black uppercase tracking-tighter border border-emerald-500/30">Trusted</span>}
+                                        {onChainTrustScore < 100 && <span className="bg-slate-500/20 text-slate-400 text-[8px] px-1.5 py-0.5 rounded font-black uppercase tracking-tighter border border-slate-500/30">New Pilot</span>}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -122,39 +145,27 @@ const Profile = () => {
                         </div>
 
                         <div className="bg-fintech-card border border-fintech-border rounded-[2rem] p-8">
-                            <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                                <FiPocket className="text-fintech-accent" /> Web3 Identity
-                            </h3>
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                    <FiAward className="text-fintech-accent" /> Reputation Growth
+                                </h3>
+                                <span className="text-xs font-mono text-slate-500">Tier: {onChainTrustScore >= 300 ? 'Gold' : onChainTrustScore >= 100 ? 'Silver' : 'Bronze'}</span>
+                            </div>
 
                             <div className="space-y-6">
                                 <div>
-                                    <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-2">Connected Wallet</label>
-                                    <div className="bg-fintech-dark/50 border border-fintech-border rounded-xl p-4 flex items-center justify-between">
-                                        <p className="text-sm font-mono text-slate-300 truncate mr-4">{walletAddr || 'Not Connected'}</p>
-                                        <button
-                                            onClick={() => copyToClipboard(walletAddr)}
-                                            className="text-slate-500 hover:text-white transition-colors"
-                                        >
-                                            <FiCopy />
-                                        </button>
+                                    <div className="flex justify-between text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-3">
+                                        <span>Trust Score Progress</span>
+                                        <span>{onChainTrustScore}/1000</span>
                                     </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4 pt-4">
-                                    <div className="p-4 bg-fintech-dark/30 rounded-2xl border border-fintech-border">
-                                        <label className="text-[9px] text-slate-500 font-bold uppercase tracking-widest block mb-1">Aadhaar Status</label>
-                                        <div className="flex items-center gap-2">
-                                            <FiCheckCircle className="text-green-500" />
-                                            <span className="text-sm font-bold text-white">Verified</span>
-                                        </div>
+                                    <div className="h-4 w-full bg-fintech-dark rounded-full p-1 border border-fintech-border relative overflow-hidden">
+                                        <motion.div
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${(onChainTrustScore / 1000) * 100}%` }}
+                                            className="h-full bg-gradient-to-r from-blue-600 to-emerald-500 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.3)]"
+                                        />
                                     </div>
-                                    <div className="p-4 bg-fintech-dark/30 rounded-2xl border border-fintech-border">
-                                        <label className="text-[9px] text-slate-500 font-bold uppercase tracking-widest block mb-1">Liveliness</label>
-                                        <div className="flex items-center gap-2">
-                                            <FiCheckCircle className="text-green-500" />
-                                            <span className="text-sm font-bold text-white">Active</span>
-                                        </div>
-                                    </div>
+                                    <p className="mt-4 text-xs text-slate-500 italic">Scores are minted on-chain after successful financial milestones.</p>
                                 </div>
                             </div>
                         </div>

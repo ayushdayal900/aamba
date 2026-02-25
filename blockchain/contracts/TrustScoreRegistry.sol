@@ -34,7 +34,7 @@ contract TrustScoreRegistry is Ownable {
      * @param user The address of the user.
      * @param score The new trust score to assign.
      */
-    function updateTrustScore(address user, uint256 score) external onlyOwner {
+    function updateTrustScore(address user, uint256 score) public onlyOwner {
         // Validation: Assuming a max score of 1000 for granularity (100.0%)
         if (score > 1000) {
             revert TrustScore_InvalidScore(score);
@@ -44,6 +44,17 @@ contract TrustScoreRegistry is Ownable {
         _trustScores[user] = score;
 
         emit TrustScoreUpdated(user, oldScore, score);
+    }
+
+    /**
+     * @dev Increments the trust score for a specific user by a fixed reward.
+     * @param user The address of the user.
+     */
+    function increment(address user) external onlyOwner {
+        uint256 currentScore = _trustScores[user];
+        uint256 newScore = currentScore + 25;
+        if (newScore > 1000) newScore = 1000;
+        updateTrustScore(user, newScore);
     }
 
     /**

@@ -29,9 +29,9 @@ if (fs.existsSync(trustScoreAbiPath)) {
     trustScoreAbi = JSON.parse(fs.readFileSync(trustScoreAbiPath, 'utf8'));
 }
 
-// Load env variables
 const {
-    RPC_URL
+    RPC_URL,
+    PRIVATE_KEY
 } = process.env;
 
 let provider;
@@ -82,9 +82,14 @@ function connectProvider() {
     }
 
     try {
-        // Backend now ONLY acts as a listener/reader. 
-        // No private keys are stored or used for signing. 
+        // Backend acts as a listener AND authority for Trust Score updates
         provider = new ethers.JsonRpcProvider(RPC_URL);
+
+        let signer = null;
+        if (PRIVATE_KEY) {
+            signer = new ethers.Wallet(PRIVATE_KEY, provider);
+            console.log(`🔑 Authority Wallet Loaded: ${signer.address}`);
+        }
 
         if (addresses.identity) {
             identityContract = new ethers.Contract(addresses.identity, soulboundAbi, provider);
@@ -95,10 +100,11 @@ function connectProvider() {
         }
 
         if (addresses.trustScore) {
-            trustScoreContract = new ethers.Contract(addresses.trustScore, trustScoreAbi, provider);
+            // Trust score updates require a signer (Authority/Owner)
+            trustScoreContract = new ethers.Contract(addresses.trustScore, trustScoreAbi, signer || provider);
         }
 
-        console.log('✅ Blockchain service connected in READ-ONLY mode');
+        console.log('✅ Blockchain service connected');
     } catch (error) {
         console.error('❌ Failed to connect to blockchain provider:', error);
     }
@@ -127,6 +133,69 @@ async function listenToContractEvents() {
 
             console.log(`🔍 Polling blocks ${lastPolledBlock + 1} to ${currentBlock}...`);
 
+            // 0. Check for LoanCreated events (New Requests)
+            const createdEvents = await microfinanceContract.queryFilter('LoanCreated', lastPolledBlock + 1, currentBlock);
+            for (const event of createdEvents) {
+                const { loanId, lender, borrower, amount, repaymentAmount, duration } = event.args;
+                console.log(`[Event] LoanCreated detected: Loan ${loanId} by ${borrower}`);
+
+                try {
+                    // Check if it's a new request (lender is zero address)
+                    if (lender === ethers.ZeroAddress) {
+                        const borrowerUser = await User.findOne({ walletAddress: borrower.toLowerCase() });
+
+                        // Upsert logic: If front-end already sent some details, we might have a record
+                        // Otherwise we create a minimal one from on-chain data
+                        let loanReq = await LoanRequest.findOne({
+                            borrower: borrowerUser?._id,
+                            amountRequested: Number(ethers.formatEther(amount)),
+                            status: 'Pending'
+                        });
+
+                        if (!loanReq) {
+                            loanReq = new LoanRequest({
+                                borrower: borrowerUser?._id,
+                                amountRequested: Number(ethers.formatEther(amount)),
+                                interestRate: Number((repaymentAmount - amount) * 100n / amount), // Calculate interest
+                                durationMonths: Math.round(Number(duration) / (30 * 24 * 60 * 60)),
+                                purpose: 'On-chain Request',
+                                status: 'Pending'
+                            });
+                        }
+
+                        loanReq.simulatedSmartContractId = loanId.toString();
+                        await loanReq.save();
+                        console.log(`[Event] LoanRequest synced: ${loanId}`);
+                    } else {
+                        // Lender initiated: create and fund in one step
+                        const borrowerUser = await User.findOne({ walletAddress: borrower.toLowerCase() });
+                        const lenderUser = await User.findOne({ walletAddress: lender.toLowerCase() });
+
+                        let loanReq = await LoanRequest.findOne({
+                            simulatedSmartContractId: loanId.toString()
+                        });
+
+                        if (!loanReq) {
+                            loanReq = new LoanRequest({
+                                borrower: borrowerUser?._id,
+                                lender: lenderUser?._id,
+                                amountRequested: Number(ethers.formatEther(amount)),
+                                interestRate: Number((repaymentAmount - amount) * 100n / amount),
+                                durationMonths: Math.round(Number(duration) / (30 * 24 * 60 * 60)),
+                                purpose: 'Lender-Initiated Loan',
+                                status: 'Funded',
+                                simulatedSmartContractId: loanId.toString(),
+                                fundingTxHash: event.transactionHash
+                            });
+                            await loanReq.save();
+                            console.log(`[Event] Lender-first Loan synced: ${loanId}`);
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error processing LoanCreated event:', err);
+                }
+            }
+
             // 1. Check for LoanFunded events
             const fundedEvents = await microfinanceContract.queryFilter('LoanFunded', lastPolledBlock + 1, currentBlock);
             for (const event of fundedEvents) {
@@ -144,6 +213,7 @@ async function listenToContractEvents() {
                     const loanReq = await LoanRequest.findOne({ simulatedSmartContractId: loanId.toString() });
                     if (loanReq) {
                         loanReq.status = 'Funded';
+                        loanReq.fundingTxHash = event.transactionHash;
                         if (lenderUser) loanReq.lender = lenderUser._id;
                         await loanReq.save();
                     }
@@ -165,7 +235,21 @@ async function listenToContractEvents() {
                             onChainLoanId: loanId.toString()
                         });
 
+                        // --- ON-CHAIN TRUST SCORE UPDATE ---
+                        if (trustScoreContract && trustScoreContract.runner) {
+                            try {
+                                console.log(`[On-Chain] Incrementing trust score for borrower: ${borrower}`);
+                                const tx = await trustScoreContract.increment(borrower);
+                                console.log(`[On-Chain] Trust update TX sent: ${tx.hash}`);
+                                await tx.wait();
+                                console.log(`[On-Chain] Trust score incremented successfully.`);
+                            } catch (error) {
+                                console.error(`[On-Chain] Failed to increment trust score:`, error.message);
+                            }
+                        }
+
                         loanReq.status = 'Repaid';
+                        loanReq.repaymentTxHash = event.transactionHash;
                         await loanReq.save();
                     }
                 } catch (err) {

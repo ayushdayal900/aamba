@@ -70,3 +70,13 @@ export const checkIdentityOwnership = async (userAddress) => {
         return false;
     }
 };
+export const parseBlockchainError = (error) => {
+    if (error.code === 'ACTION_REJECTED' || error.message?.includes('user rejected')) {
+        return "Transaction cancelled by user.";
+    }
+    if (error.message?.includes('insufficient funds')) {
+        return "Insufficient Sepolia ETH for gas + value.";
+    }
+    if (error.reason) return error.reason;
+    return error.message || "An unexpected blockchain error occurred.";
+};
