@@ -22,10 +22,16 @@ describe("TrustScoreRegistry", function () {
         expect(await trustRegistry.getTrustScore(user.address)).to.equal(score);
     });
 
-    it("Should prevent non-owners from updating scores", async function () {
+    it("Should prevent unauthorized addresses from updating scores", async function () {
         await expect(
             trustRegistry.connect(user).updateTrustScore(user.address, 500)
-        ).to.be.revertedWithCustomError(trustRegistry, "OwnableUnauthorizedAccount");
+        ).to.be.revertedWith("Not authorized");
+    });
+
+    it("Should allow authorized addresses to update scores", async function () {
+        await trustRegistry.setAuthorized(user.address, true);
+        await expect(trustRegistry.connect(user).updateTrustScore(user.address, 500))
+            .to.emit(trustRegistry, "TrustScoreUpdated");
     });
 
     it("Should prevent invalid scores (above 1000)", async function () {

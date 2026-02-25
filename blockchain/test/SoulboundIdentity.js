@@ -14,26 +14,26 @@ describe("SoulboundIdentity", function () {
         await identityContract.waitForDeployment();
     });
 
-    it("Should allow the owner to mint an identity", async function () {
-        await identityContract.mintIdentity(user1.address);
+    it("Should allow any user to mint an identity", async function () {
+        await identityContract.connect(user1).mintIdentity();
         expect(await identityContract.balanceOf(user1.address)).to.equal(1);
     });
 
-    it("Should prevent non-owners from minting", async function () {
-        await expect(
-            identityContract.connect(user1).mintIdentity(user2.address)
-        ).to.be.revertedWithCustomError(identityContract, "OwnableUnauthorizedAccount");
-    });
+    // it("Should prevent non-owners from minting", async function () {
+    //     await expect(
+    //         identityContract.connect(user1).mintIdentity(user2.address)
+    //     ).to.be.revertedWithCustomError(identityContract, "OwnableUnauthorizedAccount");
+    // });
 
     it("Should prevent a user from having more than one identity", async function () {
-        await identityContract.mintIdentity(user1.address);
+        await identityContract.connect(user1).mintIdentity();
         await expect(
-            identityContract.mintIdentity(user1.address)
+            identityContract.connect(user1).mintIdentity()
         ).to.be.revertedWithCustomError(identityContract, "Soulbound_AlreadyHasIdentity");
     });
 
     it("Should prevent all transfers (Soulbound)", async function () {
-        await identityContract.mintIdentity(user1.address);
+        await identityContract.connect(user1).mintIdentity();
         const tokenId = 1;
 
         // Direct transfer
@@ -48,7 +48,7 @@ describe("SoulboundIdentity", function () {
     });
 
     it("Should prevent approvals", async function () {
-        await identityContract.mintIdentity(user1.address);
+        await identityContract.connect(user1).mintIdentity();
         const tokenId = 1;
 
         await expect(

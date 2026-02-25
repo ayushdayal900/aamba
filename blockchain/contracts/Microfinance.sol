@@ -4,156 +4,135 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
+ * @title ISoulboundIdentity
+ * @dev Interface for the Soulbound Identity contract to check for NFT ownership.
+ */
+interface ISoulboundIdentity {
+    function balanceOf(address owner) external view returns (uint256);
+}
+
+/**
+ * @title ITrustScoreRegistry
+ * @dev Interface for the Trust Score contract to increment reputation.
+ */
+interface ITrustScoreRegistry {
+    function increment(address user) external;
+}
+
+/**
  * @title Microfinance
- * @dev A peer-to-peer microfinance lending contract that handles loan lifecycles.
- * It allows borrowers to request loans and lenders to fund them.
- * Repayments are automatically routed back to the lender.
+ * @dev Refactored peer-to-peer microfinance lending contract that handles a complete 
+ * on-chain loan lifecycle for verified users.
  */
 contract Microfinance is ReentrancyGuard {
+    ISoulboundIdentity public immutable identity;
+    ITrustScoreRegistry public immutable trustScore;
+
     struct Loan {
-        uint256 loanId;
+        uint256 id;
         address borrower;
-        address payable lender;
+        address lender;
         uint256 amount;
-        uint256 repaymentAmount;
+        uint256 interest;
         uint256 duration;
-        uint256 startTime;
+        bool funded;
         bool repaid;
-        bool active;
     }
 
-    uint256 private _loanCount;
+    uint256 public loanCounter;
     mapping(uint256 => Loan) public loans;
 
-    // Events for tracking loan lifecycle
-    event LoanCreated(uint256 indexed loanId, address indexed lender, address indexed borrower, uint256 amount, uint256 repaymentAmount, uint256 duration);
-    event LoanFunded(uint256 indexed loanId, address indexed lender, uint256 startTime);
-    event LoanRepaid(uint256 indexed loanId, address indexed borrower, uint256 amount);
+    // Events for tracking a clean loan lifecycle
+    event LoanCreated(uint256 indexed id, address indexed borrower, uint256 amount, uint256 interest, uint256 duration);
+    event LoanFunded(uint256 indexed id, address indexed lender);
+    event LoanRepaid(uint256 indexed id, address indexed borrower);
 
-
-    // Custom errors for efficiency
-    error Loan_InvalidAmount();
-    error Loan_InvalidRepayment();
-    error Loan_NotActive();
-    error Loan_AlreadyFunded();
-    error Loan_DoesNotExist();
-    error Loan_InsufficientFunds();
-    error Loan_Unauthorized();
-    error Loan_AlreadyRepaid();
-
-    /**
-     * @dev Borrowers call this to request a loan on-chain.
-     * @param amount The principal amount requested.
-     * @param repaymentAmount The total amount (principal + interest) to be repaid.
-     * @param duration The loan duration in seconds.
-     */
-    function requestLoan(uint256 amount, uint256 repaymentAmount, uint256 duration) external returns (uint256) {
-        if (amount == 0) revert Loan_InvalidAmount();
-        if (repaymentAmount <= amount) revert Loan_InvalidRepayment();
-
-        _loanCount++;
-        uint256 loanId = _loanCount;
-
-        loans[loanId] = Loan({
-            loanId: loanId,
-            borrower: msg.sender,
-            lender: payable(address(0)),
-            amount: amount,
-            repaymentAmount: repaymentAmount,
-            duration: duration,
-            startTime: 0,
-            repaid: false,
-            active: false
-        });
-
-        emit LoanCreated(loanId, address(0), msg.sender, amount, repaymentAmount, duration);
-        return loanId;
+    constructor(address identityAddress, address trustScoreAddress) {
+        identity = ISoulboundIdentity(identityAddress);
+        trustScore = ITrustScoreRegistry(trustScoreAddress);
     }
 
     /**
-     * @dev Lenders call this to fund a specific loan request.
-     * The funding amount must match the loan's original requested amount.
-     * @param loanId The ID of the loan to fund.
+     * @dev Restricts access to users holding the Soulbound Identity NFT.
      */
-    function fundLoan(uint256 loanId) external payable nonReentrant {
-        Loan storage loan = loans[loanId];
+    modifier onlyVerifiedUser() {
+        require(identity.balanceOf(msg.sender) > 0, "Not verified");
+        _;
+    }
 
-        if (loan.loanId == 0) revert Loan_DoesNotExist();
-        if (loan.active || loan.lender != address(0)) revert Loan_AlreadyFunded();
-        if (msg.value != loan.amount) revert Loan_InsufficientFunds();
+    /**
+     * @dev Creates a new loan request on-chain.
+     */
+    function createLoan(uint256 _amount, uint256 _interest, uint256 _duration) external onlyVerifiedUser {
+        require(_amount > 0, "Invalid amount");
+        
+        loanCounter++;
+        loans[loanCounter] = Loan({
+            id: loanCounter,
+            borrower: msg.sender,
+            lender: address(0),
+            amount: _amount,
+            interest: _interest,
+            duration: _duration,
+            funded: false,
+            repaid: false
+        });
 
-        loan.lender = payable(msg.sender);
-        loan.startTime = block.timestamp;
-        loan.active = true;
+        emit LoanCreated(loanCounter, msg.sender, _amount, _interest, _duration);
+    }
 
-        // Transfer the funding from the lender directly to the borrower
+    /**
+     * @dev Lenders fund a specific loan request. 
+     * Principal is transferred directly to the borrower.
+     */
+    function fundLoan(uint256 _id) external payable onlyVerifiedUser nonReentrant {
+        Loan storage loan = loans[_id];
+        
+        require(loan.id != 0, "Loan does not exist");
+        require(!loan.funded, "Already funded");
+        require(msg.sender != loan.borrower, "Borrower cannot fund own loan");
+        require(msg.value == loan.amount, "Incorrect funding amount");
+
+        loan.lender = msg.sender;
+        loan.funded = true;
+
+        // Transfer principal to borrower
         (bool success, ) = payable(loan.borrower).call{value: msg.value}("");
         require(success, "Transfer to borrower failed");
 
-        emit LoanFunded(loanId, msg.sender, block.timestamp);
+        emit LoanFunded(_id, msg.sender);
     }
 
     /**
-     * @dev Lenders call this to create AND fund a loan for a specific borrower in one step.
+     * @dev Borrowers repay their loan (principal + interest).
+     * Funds are transferred directly to the lender.
      */
-    function createLoan(address borrower, uint256 repaymentAmount, uint256 duration) external payable returns (uint256) {
-        if (msg.value == 0) revert Loan_InvalidAmount();
-        if (repaymentAmount <= msg.value) revert Loan_InvalidRepayment();
-        if (borrower == address(0)) revert Loan_Unauthorized();
+    function repayLoan(uint256 _id) external payable onlyVerifiedUser nonReentrant {
+        Loan storage loan = loans[_id];
 
-        _loanCount++;
-        uint256 loanId = _loanCount;
+        require(loan.funded, "Loan not funded");
+        require(!loan.repaid, "Already repaid");
+        require(msg.sender == loan.borrower, "Only borrower can repay");
 
-        loans[loanId] = Loan({
-            loanId: loanId,
-            borrower: borrower,
-            lender: payable(msg.sender),
-            amount: msg.value,
-            repaymentAmount: repaymentAmount,
-            duration: duration,
-            startTime: block.timestamp,
-            repaid: false,
-            active: true
-        });
-
-        // Transfer the funding from the lender to the borrower immediately
-        (bool success, ) = payable(borrower).call{value: msg.value}("");
-        require(success, "Transfer to borrower failed");
-
-        emit LoanCreated(loanId, msg.sender, borrower, msg.value, repaymentAmount, duration);
-        emit LoanFunded(loanId, msg.sender, block.timestamp);
-        return loanId;
-    }
-
-    /**
-     * @dev Borrowers call this to repay their loan.
-     * The repayment amount is immediately sent to the lender.
-     * @param loanId The ID of the loan being repaid.
-     */
-    function repayLoan(uint256 loanId) external payable nonReentrant {
-        Loan storage loan = loans[loanId];
-
-        if (!loan.active) revert Loan_NotActive();
-        if (loan.repaid) revert Loan_AlreadyRepaid();
-        if (msg.value != loan.repaymentAmount) revert Loan_InsufficientFunds();
-        if (msg.sender != loan.borrower) revert Loan_Unauthorized();
+        uint256 total = loan.amount + loan.interest;
+        require(msg.value == total, "Incorrect repayment amount");
 
         loan.repaid = true;
-        loan.active = false;
 
-        // Automatically transfer repayment + interest back to the lender
-        (bool success, ) = loan.lender.call{value: msg.value}("");
+        // Transfer total settlement to lender
+        (bool success, ) = payable(loan.lender).call{value: msg.value}("");
         require(success, "Transfer to lender failed");
 
-        emit LoanRepaid(loanId, msg.sender, msg.value);
+        // Automate trust score increment
+        trustScore.increment(loan.borrower);
+
+        emit LoanRepaid(_id, msg.sender);
     }
 
     /**
-     * @dev Helper function to get detailed information about a loan.
-     * @param loanId The ID of the loan.
+     * @dev Standard getter for frontend integration.
      */
-    function getLoanDetails(uint256 loanId) external view returns (Loan memory) {
-        if (loans[loanId].loanId == 0) revert Loan_DoesNotExist();
-        return loans[loanId];
+    function getLoanDetails(uint256 _id) external view returns (Loan memory) {
+        return loans[_id];
     }
 }

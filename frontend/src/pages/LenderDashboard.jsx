@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { ethers } from 'ethers';
-import { useAccount, useConfig } from 'wagmi';
-import { getConnectorClient } from '@wagmi/core';
+import { useAccount, useConfig, useWalletClient } from 'wagmi';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { FiLoader, FiTrendingUp, FiCheckCircle, FiInfo, FiSearch, FiGlobe } from 'react-icons/fi';
@@ -14,35 +13,83 @@ import trustScoreAbi from '../contracts/TrustScoreRegistry.json';
 import { parseBlockchainError, checkIdentityOwnership } from '../blockchainService';
 import TransactionAccordion from '../components/TransactionAccordion';
 
-// Helper to convert wagmi client to ethers signer
-async function clientToSigner(config, chainId) {
-    const client = await getConnectorClient(config, { chainId });
-    if (!client) return null;
-    const { account, chain, transport } = client;
-    const network = {
-        chainId: chain.id,
-        name: chain.name,
-        ensAddress: chain.contracts?.ensRegistry?.address,
-    };
-    const provider = new ethers.BrowserProvider(transport, network);
-    const signer = new ethers.JsonRpcSigner(provider, account.address);
-    return signer;
-}
-
 const LenderDashboard = () => {
     const { userProfile, token } = useAuth();
     const { address: walletAddress, isConnected, chainId } = useAccount();
     const config = useConfig();
+    const { data: walletClient } = useWalletClient();
     const navigate = useNavigate();
 
     const [loans, setLoans] = useState([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(null);
+    const [onChainLoans, setOnChainLoans] = useState({ created: [], funded: [] });
+    const [onChainLoading, setOnChainLoading] = useState(false);
 
     useEffect(() => {
         fetchLoans();
         verifyIdentity();
+        fetchOnChainLoans();
+
+        // Event listeners for real-time updates
+        const provider = new ethers.JsonRpcProvider("https://ethereum-sepolia-rpc.publicnode.com");
+        const contract = new ethers.Contract(addresses.microfinance, microfinanceAbi, provider);
+
+        const handleUpdate = () => {
+            fetchLoans();
+            fetchOnChainLoans();
+        };
+
+        contract.on("LoanCreated", handleUpdate);
+        contract.on("LoanFunded", handleUpdate);
+        contract.on("LoanRepaid", handleUpdate);
+
+        return () => {
+            contract.off("LoanCreated", handleUpdate);
+            contract.off("LoanFunded", handleUpdate);
+            contract.off("LoanRepaid", handleUpdate);
+        };
     }, [walletAddress]);
+
+    const fetchOnChainLoans = async () => {
+        if (!walletAddress) return;
+        setOnChainLoading(true);
+        try {
+            const provider = new ethers.JsonRpcProvider("https://ethereum-sepolia-rpc.publicnode.com");
+            const contract = new ethers.Contract(addresses.microfinance, microfinanceAbi, provider);
+
+            const count = await contract.loanCounter();
+            const allCreated = [];
+            const allFunded = [];
+
+            for (let i = 1; i <= Number(count); i++) {
+                const loan = await contract.getLoanDetails(i);
+                const formattedLoan = {
+                    id: Number(loan.id),
+                    borrower: loan.borrower,
+                    lender: loan.lender,
+                    amount: ethers.formatEther(loan.amount),
+                    interest: ethers.formatEther(loan.interest),
+                    duration: Number(loan.duration),
+                    funded: loan.funded,
+                    repaid: loan.repaid
+                };
+
+                if (loan.borrower.toLowerCase() === walletAddress.toLowerCase()) {
+                    allCreated.push(formattedLoan);
+                }
+                if (loan.lender.toLowerCase() === walletAddress.toLowerCase()) {
+                    allFunded.push(formattedLoan);
+                }
+            }
+
+            setOnChainLoans({ created: allCreated, funded: allFunded });
+        } catch (error) {
+            console.error("Error fetching on-chain loans:", error);
+        } finally {
+            setOnChainLoading(false);
+        }
+    };
 
     const verifyIdentity = async () => {
         if (walletAddress) {
@@ -102,8 +149,8 @@ const LenderDashboard = () => {
                 return;
             }
 
-            const signer = await clientToSigner(config, chainId);
-            if (!signer) throw new Error("Failed to get signer");
+            const provider = new ethers.BrowserProvider(walletClient.transport);
+            const signer = await provider.getSigner();
 
             // Verify Microfinance contract code exists
             const code = await signer.provider.getCode(addresses.microfinance);
@@ -114,15 +161,12 @@ const LenderDashboard = () => {
             const contract = new ethers.Contract(addresses.microfinance, microfinanceAbi, signer);
             const principal = ethers.parseEther(amount.toString());
 
-            toast.loading('Confirm in wallet...', { id: tid });
-            let tx;
-            if (smartContractId) {
-                tx = await contract.fundLoan(smartContractId, { value: principal });
-            } else {
-                const repaymentAmount = ethers.parseEther(((amount * (100 + interestRate)) / 100).toString());
-                const durationInSeconds = durationMonths * 30 * 24 * 60 * 60;
-                tx = await contract.createLoan(borrowerWallet, repaymentAmount, durationInSeconds, { value: principal });
+            if (!smartContractId) {
+                throw new Error("Unable to fund: Request not found on protocol node.");
             }
+
+            toast.loading('Confirm in wallet...', { id: tid });
+            const tx = await contract.fundLoan(smartContractId, { value: principal });
 
             toast.loading('Mining transaction...', { id: tid });
             await tx.wait();
@@ -182,7 +226,7 @@ const LenderDashboard = () => {
                                 <div className="flex justify-between items-start mb-8">
                                     <div className="space-y-1">
                                         <p className="text-[9px] md:text-[10px] uppercase font-black tracking-[0.2em] text-slate-600">Capital Required</p>
-                                        <h3 className="text-3xl md:text-4xl font-black text-white tracking-tighter italic">{loan.amountRequested} <span className="text-sm font-normal text-slate-500 not-italic ml-1">MATIC</span></h3>
+                                        <h3 className="text-3xl md:text-4xl font-black text-white tracking-tighter italic">{loan.amountRequested} <span className="text-sm font-normal text-slate-500 not-italic ml-1">ETH</span></h3>
                                     </div>
                                     <span className="bg-emerald-500/10 text-emerald-500 text-[9px] md:text-[10px] px-3 py-1.5 rounded-lg font-black uppercase tracking-tighter border border-emerald-500/20 shadow-inner">
                                         {loan.interestRate}% APY
@@ -236,6 +280,81 @@ const LenderDashboard = () => {
                     ))}
                 </div>
             )}
+
+            {/* On-Chain Archive Section */}
+            <section className="mt-16 pt-16 border-t border-slate-900">
+                <div className="flex items-center justify-between mb-10">
+                    <div>
+                        <h2 className="text-2xl md:text-3xl font-black text-white italic tracking-tighter">On-Chain Protocol Archive</h2>
+                        <p className="text-xs text-slate-500 font-medium mt-1">Direct cryptographic verification of your protocol interactions.</p>
+                    </div>
+                    {onChainLoading && <FiLoader className="text-blue-500 animate-spin" />}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                    {/* Created Loans */}
+                    <div className="space-y-6">
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-600 px-2 flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div> Created by You
+                        </h3>
+                        {onChainLoans.created.length === 0 ? (
+                            <div className="premium-card !p-8 text-center text-slate-600 text-[10px] font-black uppercase tracking-widest border-2 border-dashed border-slate-900">Zero Records</div>
+                        ) : (
+                            onChainLoans.created.map(loan => (
+                                <div key={loan.id} className="premium-card !p-6 flex flex-col gap-4 border-l-2 border-blue-500/30">
+                                    <div className="flex justify-between items-start">
+                                        <span className="text-[9px] font-mono text-slate-500 font-black">#ID-{loan.id}</span>
+                                        <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${loan.repaid ? 'bg-emerald-500/10 text-emerald-500' : loan.funded ? 'bg-blue-500/10 text-blue-500' : 'bg-slate-800 text-slate-500'}`}>
+                                            {loan.repaid ? 'Settled' : loan.funded ? 'Active' : 'Unfunded'}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-end">
+                                        <div>
+                                            <p className="text-2xl font-black text-white italic tracking-tighter">{loan.amount} <span className="text-[10px] not-italic text-slate-600 ml-1">ETH</span></p>
+                                            <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mt-1">Interest: {loan.interest} ETH</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1">Lender</p>
+                                            <p className="text-[8px] font-mono text-slate-400">{loan.lender === ethers.ZeroAddress ? 'OPEN MARKET' : `${loan.lender.slice(0, 6)}...${loan.lender.slice(-4)}`}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+
+                    {/* Funded Loans */}
+                    <div className="space-y-6">
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-600 px-2 flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div> Funded by You
+                        </h3>
+                        {onChainLoans.funded.length === 0 ? (
+                            <div className="premium-card !p-8 text-center text-slate-600 text-[10px] font-black uppercase tracking-widest border-2 border-dashed border-slate-900">Zero Records</div>
+                        ) : (
+                            onChainLoans.funded.map(loan => (
+                                <div key={loan.id} className="premium-card !p-6 flex flex-col gap-4 border-l-2 border-emerald-500/30">
+                                    <div className="flex justify-between items-start">
+                                        <span className="text-[9px] font-mono text-slate-500 font-black">#ID-{loan.id}</span>
+                                        <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${loan.repaid ? 'bg-emerald-500/10 text-emerald-500' : 'bg-blue-500/10 text-blue-500'}`}>
+                                            {loan.repaid ? 'Settled' : 'Active'}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-end">
+                                        <div>
+                                            <p className="text-2xl font-black text-white italic tracking-tighter">{loan.amount} <span className="text-[10px] not-italic text-slate-600 ml-1">ETH</span></p>
+                                            <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mt-1">ROI: +{loan.interest} ETH</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1">Borrower</p>
+                                            <p className="text-[8px] font-mono text-slate-400">{loan.borrower.slice(0, 6)}...{loan.borrower.slice(-4)}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            </section>
         </div>
     );
 };

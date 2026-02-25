@@ -21,21 +21,27 @@ async function main() {
     const identityAddress = await identity.getAddress();
     console.log("✅ SoulboundIdentity deployed to:", identityAddress);
 
-    // 2. Deploy Microfinance (Loan Contract)
-    console.log("\n📦 Deploying Microfinance...");
-    const Microfinance = await hre.ethers.getContractFactory("Microfinance");
-    const microfinance = await Microfinance.deploy();
-    await microfinance.waitForDeployment();
-    const microfinanceAddress = await microfinance.getAddress();
-    console.log("✅ Microfinance deployed to:", microfinanceAddress);
-
-    // 3. Deploy TrustScoreRegistry
+    // 2. Deploy TrustScoreRegistry
     console.log("\n📦 Deploying TrustScoreRegistry...");
     const TrustScoreRegistry = await hre.ethers.getContractFactory("TrustScoreRegistry");
     const trustRegistry = await TrustScoreRegistry.deploy(deployer.address);
     await trustRegistry.waitForDeployment();
     const trustRegistryAddress = await trustRegistry.getAddress();
     console.log("✅ TrustScoreRegistry deployed to:", trustRegistryAddress);
+
+    // 3. Deploy Microfinance (Loan Contract)
+    console.log("\n📦 Deploying Microfinance...");
+    const Microfinance = await hre.ethers.getContractFactory("Microfinance");
+    const microfinance = await Microfinance.deploy(identityAddress, trustRegistryAddress);
+    await microfinance.waitForDeployment();
+    const microfinanceAddress = await microfinance.getAddress();
+    console.log("✅ Microfinance deployed to:", microfinanceAddress);
+
+    // 4. Authorize Microfinance in TrustScoreRegistry
+    console.log("\n🔐 Authorizing Microfinance in TrustScoreRegistry...");
+    const authTx = await trustRegistry.setAuthorized(microfinanceAddress, true);
+    await authTx.wait();
+    console.log("✅ Authorization complete.");
 
     console.log("\n====================================================");
     console.log("🎉 ALL CONTRACTS DEPLOYED SUCCESSFULLY");

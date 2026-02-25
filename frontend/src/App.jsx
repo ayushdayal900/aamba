@@ -75,7 +75,7 @@ function App() {
       <div className="min-h-screen bg-fintech-dark">
         <Routes>
           {/* Public Routes */}
-          <Route path="/" element={<LandingPage />} />
+          <Route path="/" element={<><Navbar /><LandingPage /></>} />
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<Signup />} />
 

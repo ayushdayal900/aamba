@@ -56,13 +56,17 @@ const Sidebar = ({ onClose }) => {
                     <FiHome /> Dashboard
                 </NavLink>
 
-                <NavLink to="/lend" onClick={handleLinkClick} className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
-                    <FiTrendingUp /> Lend Capital
-                </NavLink>
+                {userProfile?.role === 'Lender' && (
+                    <NavLink to="/lend" onClick={handleLinkClick} className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+                        <FiTrendingUp /> Lend Capital
+                    </NavLink>
+                )}
 
-                <NavLink to="/borrow" onClick={handleLinkClick} className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
-                    <FiDownload /> Borrow Assets
-                </NavLink>
+                {userProfile?.role === 'Borrower' && (
+                    <NavLink to="/borrow" onClick={handleLinkClick} className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+                        <FiDownload /> Borrow Assets
+                    </NavLink>
+                )}
 
                 <NavLink to="/dashboard/profile" onClick={handleLinkClick} className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
                     <FiUser /> Protocol Profile

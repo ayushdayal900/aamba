@@ -32,22 +32,6 @@ const LandingPage = () => {
 
     return (
         <div className="min-h-screen bg-fintech-dark font-sans text-slate-100 overflow-x-hidden">
-            {/* Nav */}
-            <nav className="fixed top-0 w-full z-50 backdrop-blur-md border-b border-fintech-border/30 px-4 md:px-6 py-4 transition-all">
-                <div className="global-container flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 md:w-10 md:h-10 bg-fintech-accent rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-                            <FiShield className="text-white text-xs md:text-sm" />
-                        </div>
-                        <h1 className="text-lg md:text-xl font-black text-white tracking-widest uppercase">AAMBA</h1>
-                    </div>
-                    <div className="flex items-center gap-4 md:gap-8">
-                        <button onClick={() => navigate('/signin')} className="hidden sm:block text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 hover:text-white transition-colors">Launch Protocol</button>
-                        <button onClick={() => navigate('/signup')} className="btn-primary !py-2 !px-4 md:!px-8 text-[9px] md:text-[10px]">Get Started</button>
-                    </div>
-                </div>
-            </nav>
-
             <main>
                 {/* Hero */}
                 <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 px-4 md:px-6">

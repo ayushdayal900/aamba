@@ -123,6 +123,9 @@ export const parseBlockchainError = (error) => {
     if (error.message?.includes('insufficient funds')) {
         return "Insufficient Sepolia ETH for gas + value.";
     }
+    if (error.message?.includes('missing revert data')) {
+        return "Protocol Reverted: Likely identity verification failed or contract out of sync. Please ensure you have minted your Identity NFT.";
+    }
     if (error.reason) return error.reason;
     return error.message || "An unexpected blockchain error occurred.";
 };

@@ -1,43 +1,19 @@
 [
   {
-    "inputs": [],
-    "name": "Loan_AlreadyFunded",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "Loan_AlreadyRepaid",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "Loan_DoesNotExist",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "Loan_InsufficientFunds",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "Loan_InvalidAmount",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "Loan_InvalidRepayment",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "Loan_NotActive",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "Loan_Unauthorized",
-    "type": "error"
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "identityAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "trustScoreAddress",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
   },
   {
     "inputs": [],
@@ -50,14 +26,8 @@
       {
         "indexed": true,
         "internalType": "uint256",
-        "name": "loanId",
+        "name": "id",
         "type": "uint256"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "lender",
-        "type": "address"
       },
       {
         "indexed": true,
@@ -74,7 +44,13 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "repaymentAmount",
+        "name": "interest",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "duration",
         "type": "uint256"
       }
     ],
@@ -87,7 +63,7 @@
       {
         "indexed": true,
         "internalType": "uint256",
-        "name": "loanId",
+        "name": "id",
         "type": "uint256"
       },
       {
@@ -95,12 +71,6 @@
         "internalType": "address",
         "name": "lender",
         "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "startTime",
-        "type": "uint256"
       }
     ],
     "name": "LoanFunded",
@@ -112,7 +82,7 @@
       {
         "indexed": true,
         "internalType": "uint256",
-        "name": "loanId",
+        "name": "id",
         "type": "uint256"
       },
       {
@@ -120,12 +90,6 @@
         "internalType": "address",
         "name": "borrower",
         "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
       }
     ],
     "name": "LoanRepaid",
@@ -134,37 +98,31 @@
   {
     "inputs": [
       {
-        "internalType": "address",
-        "name": "borrower",
-        "type": "address"
-      },
-      {
         "internalType": "uint256",
-        "name": "repaymentAmount",
+        "name": "_amount",
         "type": "uint256"
       },
       {
         "internalType": "uint256",
-        "name": "duration",
+        "name": "_interest",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_duration",
         "type": "uint256"
       }
     ],
     "name": "createLoan",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "payable",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "loanId",
+        "name": "_id",
         "type": "uint256"
       }
     ],
@@ -177,7 +135,7 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "loanId",
+        "name": "_id",
         "type": "uint256"
       }
     ],
@@ -187,7 +145,7 @@
         "components": [
           {
             "internalType": "uint256",
-            "name": "loanId",
+            "name": "id",
             "type": "uint256"
           },
           {
@@ -196,7 +154,7 @@
             "type": "address"
           },
           {
-            "internalType": "address payable",
+            "internalType": "address",
             "name": "lender",
             "type": "address"
           },
@@ -207,7 +165,7 @@
           },
           {
             "internalType": "uint256",
-            "name": "repaymentAmount",
+            "name": "interest",
             "type": "uint256"
           },
           {
@@ -216,24 +174,45 @@
             "type": "uint256"
           },
           {
-            "internalType": "uint256",
-            "name": "startTime",
-            "type": "uint256"
-          },
-          {
             "internalType": "bool",
-            "name": "repaid",
+            "name": "funded",
             "type": "bool"
           },
           {
             "internalType": "bool",
-            "name": "active",
+            "name": "repaid",
             "type": "bool"
           }
         ],
         "internalType": "struct Microfinance.Loan",
         "name": "",
         "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "identity",
+    "outputs": [
+      {
+        "internalType": "contract ISoulboundIdentity",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "loanCounter",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -251,7 +230,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "loanId",
+        "name": "id",
         "type": "uint256"
       },
       {
@@ -260,7 +239,7 @@
         "type": "address"
       },
       {
-        "internalType": "address payable",
+        "internalType": "address",
         "name": "lender",
         "type": "address"
       },
@@ -271,7 +250,7 @@
       },
       {
         "internalType": "uint256",
-        "name": "repaymentAmount",
+        "name": "interest",
         "type": "uint256"
       },
       {
@@ -280,18 +259,13 @@
         "type": "uint256"
       },
       {
-        "internalType": "uint256",
-        "name": "startTime",
-        "type": "uint256"
-      },
-      {
         "internalType": "bool",
-        "name": "repaid",
+        "name": "funded",
         "type": "bool"
       },
       {
         "internalType": "bool",
-        "name": "active",
+        "name": "repaid",
         "type": "bool"
       }
     ],
@@ -302,13 +276,26 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "loanId",
+        "name": "_id",
         "type": "uint256"
       }
     ],
     "name": "repayLoan",
     "outputs": [],
     "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "trustScore",
+    "outputs": [
+      {
+        "internalType": "contract ITrustScoreRegistry",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   }
 ]

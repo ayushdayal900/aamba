@@ -31,8 +31,12 @@ const Navbar = () => {
                 <div className="hidden lg:flex items-center space-x-10">
                     <div className="flex space-x-8">
                         <Link to="/dashboard" className="text-slate-400 hover:text-white transition-colors text-xs font-black uppercase tracking-widest">Dashboard</Link>
-                        <Link to="/lend" className="text-slate-400 hover:text-white transition-colors text-xs font-black uppercase tracking-widest">Lend</Link>
-                        <Link to="/borrow" className="text-slate-400 hover:text-white transition-colors text-xs font-black uppercase tracking-widest">Borrow</Link>
+                        {userProfile?.role === 'Lender' && (
+                            <Link to="/lend" className="text-slate-400 hover:text-white transition-colors text-xs font-black uppercase tracking-widest">Lend</Link>
+                        )}
+                        {userProfile?.role === 'Borrower' && (
+                            <Link to="/borrow" className="text-slate-400 hover:text-white transition-colors text-xs font-black uppercase tracking-widest">Borrow</Link>
+                        )}
                     </div>
 
                     <div className="flex items-center space-x-6 pl-8 border-l border-fintech-border">
@@ -80,8 +84,12 @@ const Navbar = () => {
                 <div className="lg:hidden bg-fintech-surface border-b border-fintech-border py-8 px-6 space-y-8 animate-in slide-in-from-top duration-300">
                     <div className="flex flex-col space-y-6">
                         <Link to="/dashboard" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 text-slate-300 hover:text-white text-sm font-bold"><FiLayout /> Dashboard</Link>
-                        <Link to="/lend" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 text-slate-300 hover:text-white text-sm font-bold"><FiLayout /> Lend</Link>
-                        <Link to="/borrow" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 text-slate-300 hover:text-white text-sm font-bold"><FiLayout /> Borrow</Link>
+                        {userProfile?.role === 'Lender' && (
+                            <Link to="/lend" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 text-slate-300 hover:text-white text-sm font-bold"><FiLayout /> Lend</Link>
+                        )}
+                        {userProfile?.role === 'Borrower' && (
+                            <Link to="/borrow" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 text-slate-300 hover:text-white text-sm font-bold"><FiLayout /> Borrow</Link>
+                        )}
                     </div>
 
                     <div className="pt-8 border-t border-fintech-border flex flex-col gap-6">
