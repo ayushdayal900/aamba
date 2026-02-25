@@ -5,7 +5,7 @@ import { useDisconnect } from 'wagmi';
 const AuthContext = createContext();
 
 export const api = axios.create({
-    baseURL: 'http://localhost:5000/api'
+    baseURL: 'http://13.235.248.97:3000/api'
 });
 
 // Add a request interceptor to always attach the token

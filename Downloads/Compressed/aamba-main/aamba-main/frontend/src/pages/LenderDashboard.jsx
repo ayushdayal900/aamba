@@ -104,7 +104,7 @@ const LenderDashboard = () => {
     const fetchLoans = async () => {
         setLoading(true);
         try {
-            const res = await axios.get('http://localhost:5000/api/loans');
+            const res = await axios.get('http://13.235.248.97:3000/api/loans');
             if (res.data.success) {
                 const loanData = res.data.data;
                 const provider = new ethers.JsonRpcProvider("https://ethereum-sepolia-rpc.publicnode.com");
@@ -172,7 +172,7 @@ const LenderDashboard = () => {
             await tx.wait();
 
             toast.loading('Synchronizing state...', { id: tid });
-            await axios.put(`http://localhost:5000/api/loans/${loanId}/fund`, {
+            await axios.put(`http://13.235.248.97:3000/api/loans/${loanId}/fund`, {
                 lenderId: userProfile._id
             }, {
                 headers: { Authorization: `Bearer ${token || userProfile.token}` }

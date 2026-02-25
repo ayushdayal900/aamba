@@ -31,57 +31,58 @@ Your backend represents the core API and needs to be hosted on a virtual server 
 1. Go to the **EC2 Dashboard** in AWS.
 2. Click **Launch Instance**.
 3. **Name**: `aamba-backend-server`
-4. **OS API**: Select **Ubuntu** (Ubuntu Server 24.04 or 22.04 LTS).
-5. **Instance Type**: `t2.micro` or `t3.micro` (eligible for free tier).
+4. **OS API**: Select **Amazon Linux 2023 AMI** (Default eligible for free tier).
+5. **Instance Type**: `t2.micro` or `t3.micro`.
 6. **Key Pair**: Create a new key pair (e.g., `aamba-key.pem`) and download it. **Keep this safe!**
 7. **Network Settings**:
    - Check **Allow SSH traffic** (from anywhere or your IP).
    - Check **Allow HTTP traffic from the internet**.
    - Check **Allow HTTPS traffic from the internet**.
-8. **Storage**: 8 GB to 30 GB gp3 is sufficient.
+8. **Storage**: 8 GB gp3 is sufficient.
 9. Click **Launch Instance**.
 
 ### 2. Configure Custom TCP Port (Important)
-Since your backend likely runs on a specific port (e.g., `3000` or `5000`):
+Since your backend runs on a specific port (e.g., `3000` or `5000`):
 1. In the EC2 console, select your instance and go to the **Security** tab.
 2. Click on the attached Security Group.
 3. Click **Edit inbound rules** -> **Add rule**.
-4. Type: **Custom TCP**, Port range: `3000` (or whatever your backend port is), Source: `Anywhere-IPv4` (`0.0.0.0/0`).
+4. Type: **Custom TCP**, Port range: `3000` (or whatever your actual backend port is), Source: `Anywhere-IPv4` (`0.0.0.0/0`).
 5. Save rules.
 
 ### 3. Connect to EC2 and Setup Environment
 Open your terminal and SSH into your instance using the downloaded key:
 
 ```bash
-# Change permissions of your key file
+# Change permissions of your key file to be read-only (Important for security)
 chmod 400 aamba-key.pem
 
-# Connect to EC2 (replace IP with your instance's Public IPv4 address)
-ssh -i "aamba-key.pem" ubuntu@<YOUR_EC2_PUBLIC_IP>
+# Connect to the Amazon Linux EC2 instance 
+# (Replace IP with your instance's Public IPv4 address)
+ssh -i "aamba-key.pem" ec2-user@<YOUR_EC2_PUBLIC_IP>
 ```
 
-Run the following commands on the server to install necessary dependencies:
+Run the following commands on the server to install necessary dependencies using Amazon Linux (`dnf`):
 
 ```bash
 # Update packages
-sudo apt update && sudo apt upgrade -y
+sudo dnf update -y
 
-# Install Node.js (v20)
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs
+# Install Git
+sudo dnf install git -y
+
+# Install Node.js (v20 via NodeSource)
+curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+sudo dnf install -y nodejs
 
 # Install PM2 globally
 sudo npm install -g pm2
-
-# Install Git
-sudo apt install git -y
 ```
 
 ### 4. Clone Repository and Start Backend
 ```bash
-# Clone your repository (you may need to generate SSH keys or use a PAT if the repo is private)
-git clone https://github.com/your-username/aamba-main.git
-cd aamba-main/backend
+# Clone your repository
+git clone https://github.com/ayushdayal900/aamba.git
+cd aamba/backend
 
 # Install backend dependencies
 npm install
@@ -95,7 +96,7 @@ nano .env
 pm2 start index.js --name "aamba-backend"
 pm2 save
 pm2 startup
-# -> Run the generated startup command shown in the terminal
+# -> Run the generated startup command shown in the terminal (copy+paste and hit enter)
 ```
 
 ### 5. Finalize Configuration

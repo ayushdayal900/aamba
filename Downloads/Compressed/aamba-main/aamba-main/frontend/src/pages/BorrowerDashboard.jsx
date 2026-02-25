@@ -106,7 +106,7 @@ const BorrowerDashboard = () => {
 
     const fetchMyLoans = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/loans/my', {
+            const res = await axios.get('http://13.235.248.97:3000/api/loans/my', {
                 headers: { Authorization: `Bearer ${token || userProfile.token}` }
             });
             if (res.data.success) {
@@ -145,7 +145,7 @@ const BorrowerDashboard = () => {
             await tx.wait();
 
             toast.loading('Finalizing with protocol...', { id: tid });
-            await axios.put(`http://localhost:5000/api/loans/${loanId}/repay`, {
+            await axios.put(`http://13.235.248.97:3000/api/loans/${loanId}/repay`, {
                 txHash: tx.hash
             }, {
                 headers: { Authorization: `Bearer ${token || userProfile.token}` }
@@ -197,7 +197,7 @@ const BorrowerDashboard = () => {
             await tx.wait();
 
             toast.loading('Syncing proposal state...', { id: tid });
-            await axios.post('http://localhost:5000/api/loans', {
+            await axios.post('http://13.235.248.97:3000/api/loans', {
                 borrowerId: userProfile._id,
                 amountRequested: Number(amount),
                 interestRate: 10,

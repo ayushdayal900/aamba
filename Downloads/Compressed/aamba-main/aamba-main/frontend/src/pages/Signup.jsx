@@ -36,7 +36,7 @@ const Signup = () => {
         setLocalLoading(true);
         const tid = toast.loading('Sending security code...');
         try {
-            const response = await axios.post('http://localhost:5000/auth/send-otp', { email });
+            const response = await axios.post('http://13.235.248.97:3000/auth/send-otp', { email });
             if (response.data.success) {
                 toast.success('OTP sent to your email', { id: tid });
                 setShowOTP(true);
@@ -57,7 +57,7 @@ const Signup = () => {
         setLocalLoading(true);
         const tid = toast.loading('Verifying code...');
         try {
-            const response = await axios.post('http://localhost:5000/auth/verify-otp', { email, otp });
+            const response = await axios.post('http://13.235.248.97:3000/auth/verify-otp', { email, otp });
             if (response.data.verified) {
                 toast.success('Email verified successfully!', { id: tid });
                 setEmailVerified(true);
