@@ -2,14 +2,31 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { ethers } from 'ethers';
-import { useAccount } from 'wagmi';
+import { useAccount, useConfig } from 'wagmi';
+import { getConnectorClient } from '@wagmi/core';
 
 import addresses from '../contracts/addresses.json';
 import microfinanceAbi from '../contracts/Microfinance.json';
 
+// Helper to convert wagmi client to ethers signer
+async function clientToSigner(config, chainId) {
+    const client = await getConnectorClient(config, { chainId });
+    if (!client) return null;
+    const { account, chain, transport } = client;
+    const network = {
+        chainId: chain.id,
+        name: chain.name,
+        ensAddress: chain.contracts?.ensRegistry?.address,
+    };
+    const provider = new ethers.BrowserProvider(transport, network);
+    const signer = new ethers.JsonRpcSigner(provider, account.address);
+    return signer;
+}
+
 const BorrowerDashboard = () => {
     const { userProfile, token } = useAuth();
-    const { address: walletAddress, isConnected } = useAccount();
+    const { address: walletAddress, isConnected, chainId } = useAccount();
+    const config = useConfig();
     const [amount, setAmount] = useState('');
     const [duration, setDuration] = useState('');
     const [purpose, setPurpose] = useState('');
@@ -20,15 +37,15 @@ const BorrowerDashboard = () => {
     const [txHash, setTxHash] = useState(null);
 
     useEffect(() => {
-        if (token) {
+        if (token || userProfile?.token) {
             fetchMyLoans();
         }
-    }, [token]);
+    }, [token, userProfile]);
 
     const fetchMyLoans = async () => {
         try {
             const res = await axios.get('http://localhost:5000/api/loans/my', {
-                headers: { Authorization: `Bearer ${token}` }
+                headers: { Authorization: `Bearer ${token || userProfile.token}` }
             });
             if (res.data.success) {
                 setMyLoans(res.data.data);
@@ -46,8 +63,8 @@ const BorrowerDashboard = () => {
         setMessage('Awaiting wallet approval to repay on-chain...');
 
         try {
-            const provider = new ethers.BrowserProvider(window.ethereum);
-            const signer = await provider.getSigner();
+            const signer = await clientToSigner(config, chainId);
+            if (!signer) throw new Error("Failed to get signer");
             const contract = new ethers.Contract(addresses.microfinance, microfinanceAbi, signer);
 
             // Fetch repayment amount (Principal + Interest)
@@ -67,7 +84,7 @@ const BorrowerDashboard = () => {
             await axios.put(`http://localhost:5000/api/loans/${loanId}/repay`, {
                 txHash: tx.hash
             }, {
-                headers: { Authorization: `Bearer ${token}` }
+                headers: { Authorization: `Bearer ${token || userProfile.token}` }
             });
 
             setMessage('Loan fully Repaid! Your trust score will be updated shortly.');
@@ -92,7 +109,7 @@ const BorrowerDashboard = () => {
                 durationMonths: Number(duration),
                 purpose
             }, {
-                headers: { Authorization: `Bearer ${token}` }
+                headers: { Authorization: `Bearer ${token || userProfile.token}` }
             });
 
             if (res.data.success) {

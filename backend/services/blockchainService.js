@@ -184,7 +184,6 @@ async function listenToContractEvents() {
 
 module.exports = {
     connectProvider,
-    mintIdentityNFT,
     listenToContractEvents,
     updateTrustScore
 };

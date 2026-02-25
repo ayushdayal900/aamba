@@ -88,7 +88,7 @@ const Login = () => {
                 </form>
 
                 <p className="mt-6 text-center text-slate-400 text-sm">
-                    Don't have an account? <Link to="/register" className="text-fintech-accent hover:text-blue-400 font-medium">Sign Up & Create Identity</Link>
+                    Don't have an account? <Link to="/signup" className="text-fintech-accent hover:text-blue-400 font-medium">Sign Up & Create Identity</Link>
                 </p>
 
             </div>

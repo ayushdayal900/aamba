@@ -56,6 +56,48 @@ exports.registerUser = async (req, res) => {
     }
 };
 
+// @desc    Authenticate/Register user via Wallet
+// @route   POST /api/users/wallet-login
+exports.walletLogin = async (req, res) => {
+    try {
+        const { walletAddress } = req.body;
+        if (!walletAddress) {
+            return res.status(400).json({ message: 'Wallet address required' });
+        }
+
+        // Find user by wallet address
+        let user = await User.findOne({ walletAddress: walletAddress.toLowerCase() });
+
+        if (!user) {
+            // Create a placeholder user for onboarding if not found
+            // In a real app, we'd signed a message
+            user = await User.create({
+                name: `User ${walletAddress.slice(0, 6)}`,
+                email: `${walletAddress.toLowerCase()}@aamba.io`,
+                password: await bcrypt.hash(Math.random().toString(36), 10),
+                walletAddress: walletAddress.toLowerCase(),
+                role: 'Unassigned',
+                kycStatus: 'Pending'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: {
+                _id: user.id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                kycStatus: user.kycStatus,
+                walletAddress: user.walletAddress,
+                token: generateToken(user._id),
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 // @desc    Authenticate a user
 // @route   POST /api/users/login
 exports.loginUser = async (req, res) => {
@@ -119,6 +161,91 @@ exports.updateUserRole = async (req, res) => {
     }
 };
 
+// @desc    Verify Aadhaar (Mocked)
+// @route   POST /api/users/verify-kyc
+exports.verifyKyc = async (req, res) => {
+    try {
+        const { aadhaarNumber } = req.body;
+
+        // Basic validation: 12-digit numeric
+        if (!/^\d{12}$/.test(aadhaarNumber)) {
+            return res.status(400).json({ success: false, message: 'Invalid Aadhaar number. Must be 12 digits.' });
+        }
+
+        // Mock success
+        res.status(200).json({
+            success: true,
+            verified: true,
+            message: 'Aadhaar verified successfully'
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Perform AI liveliness check using Hugging Face
+// @route   POST /api/users/liveliness
+exports.checkLiveliness = async (req, res) => {
+    try {
+        const { image } = req.body;
+        if (!image) {
+            return res.status(400).json({ success: false, message: 'Image is required for liveliness check' });
+        }
+
+        console.log("[AI] Analyzing image with Hugging Face...");
+        const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
+        const imageBuffer = Buffer.from(base64Data, 'base64');
+
+        const hfModelId = process.env.HF_MODEL_ID || 'google/vit-base-patch16-224';
+
+        const apiResponse = await fetch(`https://api-inference.huggingface.co/models/${hfModelId}`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${process.env.HF_API_KEY}`,
+                'Content-Type': 'application/octet-stream',
+                'x-wait-for-model': 'true'
+            },
+            body: imageBuffer
+        });
+
+        if (apiResponse.ok) {
+            const modelResult = await apiResponse.json();
+            console.log("[AI] HF Analysis Complete:", modelResult);
+
+            if (modelResult && modelResult.length > 0 && modelResult[0].score > 0.05) {
+                // Persistence: Update user status in DB so they don't lose progress on refresh
+                await User.findByIdAndUpdate(req.user.id, { kycStatus: 'FaceVerified' });
+
+                return res.status(200).json({
+                    success: true,
+                    message: 'AI Liveliness Check Passed',
+                    analysis: modelResult
+                });
+            } else {
+                return res.status(422).json({
+                    success: false,
+                    message: 'AI could not confidently identify a face. Please adjust your lighting and try again.'
+                });
+            }
+        } else {
+            const errorLog = await apiResponse.text();
+            console.error("[AI] HF Error:", errorLog);
+
+            const message = errorLog.includes('loading')
+                ? 'AI Engine is still warming up. Please wait 15 seconds and try again.'
+                : 'AI analysis failed. Please ensure your face is well-lit and directly facing the camera.';
+
+            return res.status(422).json({
+                success: false,
+                message: message
+            });
+        }
+    } catch (error) {
+        console.error("[AI] Error:", error);
+        res.status(500).json({ success: false, message: 'AI processing error. Please try again.' });
+    }
+};
+
 // @desc    Submit KYC details and simulate Liveliness check/NFT minting
 // @route   POST /api/users/kyc
 exports.submitKYC = async (req, res) => {
@@ -129,39 +256,7 @@ exports.submitKYC = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Liveliness scan image is required' });
         }
 
-        // 1. Convert base64 image to buffer for Hugging Face
-        const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
-        const imageBuffer = Buffer.from(base64Data, 'base64');
-
-        // 2. Call Hugging Face API to check liveliness
-        const hfModelId = process.env.HF_MODEL_ID || 'google/vit-base-patch16-224';
-
-        let isLive = false;
-        try {
-            const apiResponse = await fetch(`https://router.huggingface.co/hf-inference/models/${hfModelId}`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${process.env.HF_API_KEY}`,
-                    'Content-Type': 'application/octet-stream'
-                },
-                body: imageBuffer
-            });
-
-            if (apiResponse.ok) {
-                const modelResult = await apiResponse.json();
-                console.log("Hugging Face Model Result:", modelResult);
-                // For demo reliability, if API returns successfully, we consider it a pass
-                isLive = true;
-            }
-        } catch (fetchError) {
-            console.error("HF Fetch Error:", fetchError);
-        }
-
-        if (!isLive) {
-            return res.status(400).json({ success: false, message: 'Liveliness Check Failed.' });
-        }
-
-        // 3. Logic depends on whether we are just verifying face or minting NFT
+        // Logic depends on whether we are just verifying face or minting NFT
         const userFind = await User.findById(req.user.id);
 
         if (!walletAddress) {

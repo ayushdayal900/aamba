@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { registerUser, loginUser, updateUserRole, submitKYC } = require('../controllers/userController');
+const { registerUser, loginUser, walletLogin, updateUserRole, submitKYC, verifyKyc, checkLiveliness } = require('../controllers/userController');
 const { protect } = require('../middleware/authMiddleware');
 
 const { getTrustScoreHistory } = require('../controllers/trustScoreController');
@@ -8,10 +8,13 @@ const { getTrustScoreHistory } = require('../controllers/trustScoreController');
 // Traditional Auth Flow
 router.post('/register', registerUser);
 router.post('/login', loginUser);
+router.post('/wallet-login', walletLogin);
 
 // Protected Routes
 router.put('/role', protect, updateUserRole);
 router.post('/kyc', protect, submitKYC);
+router.post('/verify-kyc', protect, verifyKyc);
+router.post('/liveliness', protect, checkLiveliness);
 
 // Analytics & Trust Score
 router.get('/trust-score-history', protect, getTrustScoreHistory);

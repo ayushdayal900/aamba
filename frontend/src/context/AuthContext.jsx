@@ -38,6 +38,25 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const walletLogin = async (walletAddress) => {
+        try {
+            setLoading(true);
+            const response = await axios.post('http://localhost:5000/api/users/wallet-login', { walletAddress });
+            if (response.data.success) {
+                const data = response.data.data;
+                setUserProfile(data);
+                localStorage.setItem('userInfo', JSON.stringify(data));
+                axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+                return { success: true };
+            }
+        } catch (error) {
+            console.error("Wallet login failed", error);
+            return { success: false, message: 'Wallet login failed' };
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const register = async (name, email, password) => {
         try {
             setLoading(true);
@@ -59,6 +78,9 @@ export const AuthProvider = ({ children }) => {
 
     const logout = () => {
         localStorage.removeItem('userInfo');
+        localStorage.removeItem('isOnboarded');
+        localStorage.removeItem('walletAddress');
+        localStorage.removeItem('userRole');
         setUserProfile(null);
         delete axios.defaults.headers.common['Authorization'];
         disconnect(); // Also disconnect wagmi wallet if any
@@ -106,8 +128,9 @@ export const AuthProvider = ({ children }) => {
         <AuthContext.Provider value={{
             userProfile,
             loading,
-            isConnected: !!userProfile, // We use this to check authentication status across the app
+            isAuthenticated: !!userProfile, // Renamed from isConnected to avoid conflict with wagmi
             login,
+            walletLogin,
             register,
             logout,
             updateRole,

@@ -6,22 +6,22 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 const Navbar = () => {
 
 
-    const { isConnected, userProfile, logout } = useAuth();
+    const { isAuthenticated, userProfile, logout } = useAuth();
     const navigate = useNavigate();
 
     const handleLogout = () => {
         logout();
-        navigate('/login');
+        navigate('/');
     };
 
     return (
         <nav className="bg-fintech-dark border-b border-fintech-border px-6 py-4 flex justify-between items-center">
             <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 rounded-full bg-fintech-accent flex items-center justify-center">
-                    <span className="text-white font-bold italic">M</span>
+                    <span className="text-white font-bold italic">A</span>
                 </div>
                 <Link to="/" className="text-xl font-bold text-white tracking-wide">
-                    MicroFin
+                    Aamba
                 </Link>
             </div>
 
@@ -31,13 +31,20 @@ const Navbar = () => {
                 <Link to="/borrow" className="text-slate-300 hover:text-white transition-colors text-sm font-medium">Borrow</Link>
 
                 <div className="pl-4 border-l border-fintech-border flex space-x-4 items-center">
-                    {isConnected ? (
+                    {isAuthenticated ? (
                         <div className="flex items-center space-x-4">
                             <ConnectButton showBalance={false} chainStatus="icon" accountStatus="avatar" />
                             <div className="h-6 w-[1px] bg-fintech-border mx-2"></div>
                             <span className="text-sm text-slate-300">
                                 {userProfile?.name} <span className="text-xs bg-slate-800 px-2 py-1 rounded ml-2">{userProfile?.role || 'User'}</span>
                             </span>
+                            <Link
+                                to="/dashboard/profile"
+                                className="text-slate-300 hover:text-white transition-colors bg-white/5 p-2 rounded-lg"
+                                title="Profile"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                            </Link>
 
                             <button
                                 onClick={handleLogout}
@@ -48,10 +55,10 @@ const Navbar = () => {
                         </div>
                     ) : (
                         <>
-                            <Link to="/login" className="text-sm font-medium text-slate-300 hover:text-white transition-colors">
-                                Log In
+                            <Link to="/signin" className="text-sm font-medium text-slate-300 hover:text-white transition-colors">
+                                Sign In
                             </Link>
-                            <Link to="/register" className="text-sm font-medium bg-fintech-accent hover:bg-blue-600 text-white px-5 py-2 rounded-lg transition-colors shadow-lg">
+                            <Link to="/signup" className="text-sm font-medium bg-fintech-accent hover:bg-blue-600 text-white px-5 py-2 rounded-lg transition-colors shadow-lg">
                                 Sign Up
                             </Link>
                         </>
