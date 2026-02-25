@@ -188,7 +188,7 @@ const Onboarding = () => {
                 toast.success('Identity already exists on-chain.', { id: tid });
             } else {
                 toast.loading('Waiting for blockchain confirmation...', { id: tid });
-                const isOwner = await checkIdentityOwnership(address);
+                const isOwner = await checkIdentityOwnership(address, provider);
                 if (!isOwner) throw new Error("Identity verification failed on-chain.");
                 toast.success('Identity Soulbound Successfully!', { id: tid });
             }
@@ -212,7 +212,8 @@ const Onboarding = () => {
     // Auto-progress if already has NFT while on mint step
     useEffect(() => {
         if (currentStep === 6 && address) {
-            checkIdentityOwnership(address).then(hasNft => {
+            const provider = walletClient ? new ethers.BrowserProvider(walletClient.transport) : null;
+            checkIdentityOwnership(address, provider).then(hasNft => {
                 if (hasNft) {
                     localStorage.setItem("isOnboarded", "true");
                     setCurrentStep(7);

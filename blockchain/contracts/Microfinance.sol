@@ -4,10 +4,10 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
- * @title ISoulboundIdentity
+ * @title Identity
  * @dev Interface for the Soulbound Identity contract to check for NFT ownership.
  */
-interface ISoulboundIdentity {
+interface Identity {
     function balanceOf(address owner) external view returns (uint256);
 }
 
@@ -21,12 +21,16 @@ interface ITrustScoreRegistry {
 
 /**
  * @title Microfinance
- * @dev Refactored peer-to-peer microfinance lending contract that handles a complete 
- * on-chain loan lifecycle for verified users.
+ * @dev Peer-to-peer microfinance lending contract with protocol fee collection.
  */
 contract Microfinance is ReentrancyGuard {
-    ISoulboundIdentity public immutable identity;
+    // --- State ---
+    address public owner;
+    address public identityContract;
+    address public treasury;
     ITrustScoreRegistry public immutable trustScore;
+
+    uint256 public protocolFeeBasisPoints = 100; // 1% (100 / 10000)
 
     struct Loan {
         uint256 id;
@@ -42,30 +46,66 @@ contract Microfinance is ReentrancyGuard {
     uint256 public loanCounter;
     mapping(uint256 => Loan) public loans;
 
-    // Events for tracking a clean loan lifecycle
+    // --- Events ---
     event LoanCreated(uint256 indexed id, address indexed borrower, uint256 amount, uint256 interest, uint256 duration);
     event LoanFunded(uint256 indexed id, address indexed lender);
     event LoanRepaid(uint256 indexed id, address indexed borrower);
+    event ProtocolFeeCollected(uint256 indexed loanId, uint256 fee);
+    event ProtocolFeeUpdated(uint256 oldFee, uint256 newFee);
 
-    constructor(address identityAddress, address trustScoreAddress) {
-        identity = ISoulboundIdentity(identityAddress);
-        trustScore = ITrustScoreRegistry(trustScoreAddress);
+    // --- Constructor ---
+    constructor(address _identityContract, address _trustScore, address _treasury) {
+        owner = msg.sender;
+        identityContract = _identityContract;
+        trustScore = ITrustScoreRegistry(_trustScore);
+        treasury = _treasury;
+    }
+
+    // --- Modifiers ---
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Not owner");
+        _;
+    }
+
+    modifier onlyVerifiedUser() {
+        require(
+            Identity(identityContract).balanceOf(msg.sender) > 0,
+            "Not verified"
+        );
+        _;
+    }
+
+    // --- Debug / Admin ---
+
+    function getIdentityAddress() public view returns (address) {
+        return identityContract;
     }
 
     /**
-     * @dev Restricts access to users holding the Soulbound Identity NFT.
+     * @dev Owner can update the protocol fee (capped at 10%).
      */
-    modifier onlyVerifiedUser() {
-        require(identity.balanceOf(msg.sender) > 0, "Not verified");
-        _;
+    function setProtocolFee(uint256 _newFeeBps) external onlyOwner {
+        require(_newFeeBps <= 1000, "Fee too high");
+        emit ProtocolFeeUpdated(protocolFeeBasisPoints, _newFeeBps);
+        protocolFeeBasisPoints = _newFeeBps;
     }
+
+    /**
+     * @dev Owner can update the treasury address.
+     */
+    function setTreasury(address _newTreasury) external onlyOwner {
+        require(_newTreasury != address(0), "Zero address");
+        treasury = _newTreasury;
+    }
+
+    // --- Core Functions ---
 
     /**
      * @dev Creates a new loan request on-chain.
      */
     function createLoan(uint256 _amount, uint256 _interest, uint256 _duration) external onlyVerifiedUser {
         require(_amount > 0, "Invalid amount");
-        
+
         loanCounter++;
         loans[loanCounter] = Loan({
             id: loanCounter,
@@ -82,12 +122,12 @@ contract Microfinance is ReentrancyGuard {
     }
 
     /**
-     * @dev Lenders fund a specific loan request. 
-     * Principal is transferred directly to the borrower.
+     * @dev Lenders fund a loan. Protocol fee is deducted and sent to treasury.
+     *      Net amount (principal - fee) is sent to borrower.
      */
     function fundLoan(uint256 _id) external payable onlyVerifiedUser nonReentrant {
         Loan storage loan = loans[_id];
-        
+
         require(loan.id != 0, "Loan does not exist");
         require(!loan.funded, "Already funded");
         require(msg.sender != loan.borrower, "Borrower cannot fund own loan");
@@ -96,16 +136,26 @@ contract Microfinance is ReentrancyGuard {
         loan.lender = msg.sender;
         loan.funded = true;
 
-        // Transfer principal to borrower
-        (bool success, ) = payable(loan.borrower).call{value: msg.value}("");
-        require(success, "Transfer to borrower failed");
+        // Protocol fee calculation
+        uint256 fee = (msg.value * protocolFeeBasisPoints) / 10000;
+        uint256 netAmount = msg.value - fee;
+
+        // Transfer net amount to borrower
+        (bool ok1, ) = payable(loan.borrower).call{value: netAmount}("");
+        require(ok1, "Transfer to borrower failed");
+
+        // Transfer fee to treasury
+        if (fee > 0) {
+            (bool ok2, ) = payable(treasury).call{value: fee}("");
+            require(ok2, "Fee transfer to treasury failed");
+            emit ProtocolFeeCollected(_id, fee);
+        }
 
         emit LoanFunded(_id, msg.sender);
     }
 
     /**
-     * @dev Borrowers repay their loan (principal + interest).
-     * Funds are transferred directly to the lender.
+     * @dev Borrowers repay their loan (principal + interest) directly to lender.
      */
     function repayLoan(uint256 _id) external payable onlyVerifiedUser nonReentrant {
         Loan storage loan = loans[_id];
@@ -119,20 +169,33 @@ contract Microfinance is ReentrancyGuard {
 
         loan.repaid = true;
 
-        // Transfer total settlement to lender
         (bool success, ) = payable(loan.lender).call{value: msg.value}("");
         require(success, "Transfer to lender failed");
 
-        // Automate trust score increment
         trustScore.increment(loan.borrower);
 
         emit LoanRepaid(_id, msg.sender);
     }
 
+    // --- View Functions ---
+
     /**
-     * @dev Standard getter for frontend integration.
+     * @dev Returns a single loan's details.
      */
     function getLoanDetails(uint256 _id) external view returns (Loan memory) {
         return loans[_id];
+    }
+
+    /**
+     * @dev Returns ALL loans from id=1 to loanCounter as an array.
+     *      Frontend can filter by borrower/lender address.
+     */
+    function getAllLoans() public view returns (Loan[] memory) {
+        if (loanCounter == 0) return new Loan[](0);
+        Loan[] memory allLoans = new Loan[](loanCounter);
+        for (uint256 i = 1; i <= loanCounter; i++) {
+            allLoans[i - 1] = loans[i];
+        }
+        return allLoans;
     }
 }

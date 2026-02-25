@@ -86,8 +86,17 @@ exports.fundLoan = async (req, res) => {
 // @route   GET /api/loans/my
 exports.getUserLoans = async (req, res) => {
     try {
-        const userId = req.user.id;
+        const userId = req.user._id || req.user.id;
         const user = await User.findById(userId);
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        // Unassigned users have no loans to show yet
+        if (user.role === 'Unassigned') {
+            return res.status(200).json({ success: true, count: 0, data: [] });
+        }
 
         let query = {};
         if (user.role === 'Borrower') {
@@ -102,9 +111,11 @@ exports.getUserLoans = async (req, res) => {
 
         res.status(200).json({ success: true, count: loans.length, data: loans });
     } catch (error) {
+        console.error('[getUserLoans] Error:', error.message);
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
 
 // @desc    Sync repayment from frontend to backend
 // @route   PUT /api/loans/:id/repay

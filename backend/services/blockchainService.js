@@ -136,61 +136,33 @@ async function listenToContractEvents() {
             // 0. Check for LoanCreated events (New Requests)
             const createdEvents = await microfinanceContract.queryFilter('LoanCreated', lastPolledBlock + 1, currentBlock);
             for (const event of createdEvents) {
-                const { loanId, lender, borrower, amount, repaymentAmount, duration } = event.args;
-                console.log(`[Event] LoanCreated detected: Loan ${loanId} by ${borrower}`);
+                const { id: onChainId, borrower, amount, interest, duration } = event.args;
+                console.log(`[Event] LoanCreated detected: Loan ${onChainId} by ${borrower}`);
 
                 try {
-                    // Check if it's a new request (lender is zero address)
-                    if (lender === ethers.ZeroAddress) {
-                        const borrowerUser = await User.findOne({ walletAddress: borrower.toLowerCase() });
+                    const borrowerUser = await User.findOne({ walletAddress: borrower.toLowerCase() });
 
-                        // Upsert logic: If front-end already sent some details, we might have a record
-                        // Otherwise we create a minimal one from on-chain data
-                        let loanReq = await LoanRequest.findOne({
+                    // Upsert logic: If front-end already sent some details, we might have a record
+                    let loanReq = await LoanRequest.findOne({
+                        borrower: borrowerUser?._id,
+                        amountRequested: Number(ethers.formatEther(amount)),
+                        status: 'Pending'
+                    });
+
+                    if (!loanReq) {
+                        loanReq = new LoanRequest({
                             borrower: borrowerUser?._id,
                             amountRequested: Number(ethers.formatEther(amount)),
+                            interestRate: Number(ethers.formatUnits(interest, 18)) * 100 / Number(ethers.formatEther(amount)), // Approximation
+                            durationMonths: Math.round(Number(duration) / (30 * 24 * 60 * 60)),
+                            purpose: 'On-chain Request',
                             status: 'Pending'
                         });
-
-                        if (!loanReq) {
-                            loanReq = new LoanRequest({
-                                borrower: borrowerUser?._id,
-                                amountRequested: Number(ethers.formatEther(amount)),
-                                interestRate: Number((repaymentAmount - amount) * 100n / amount), // Calculate interest
-                                durationMonths: Math.round(Number(duration) / (30 * 24 * 60 * 60)),
-                                purpose: 'On-chain Request',
-                                status: 'Pending'
-                            });
-                        }
-
-                        loanReq.simulatedSmartContractId = loanId.toString();
-                        await loanReq.save();
-                        console.log(`[Event] LoanRequest synced: ${loanId}`);
-                    } else {
-                        // Lender initiated: create and fund in one step
-                        const borrowerUser = await User.findOne({ walletAddress: borrower.toLowerCase() });
-                        const lenderUser = await User.findOne({ walletAddress: lender.toLowerCase() });
-
-                        let loanReq = await LoanRequest.findOne({
-                            simulatedSmartContractId: loanId.toString()
-                        });
-
-                        if (!loanReq) {
-                            loanReq = new LoanRequest({
-                                borrower: borrowerUser?._id,
-                                lender: lenderUser?._id,
-                                amountRequested: Number(ethers.formatEther(amount)),
-                                interestRate: Number((repaymentAmount - amount) * 100n / amount),
-                                durationMonths: Math.round(Number(duration) / (30 * 24 * 60 * 60)),
-                                purpose: 'Lender-Initiated Loan',
-                                status: 'Funded',
-                                simulatedSmartContractId: loanId.toString(),
-                                fundingTxHash: event.transactionHash
-                            });
-                            await loanReq.save();
-                            console.log(`[Event] Lender-first Loan synced: ${loanId}`);
-                        }
                     }
+
+                    loanReq.simulatedSmartContractId = onChainId.toString();
+                    await loanReq.save();
+                    console.log(`[Event] LoanRequest synced: ${onChainId}`);
                 } catch (err) {
                     console.error('Error processing LoanCreated event:', err);
                 }
@@ -199,18 +171,18 @@ async function listenToContractEvents() {
             // 1. Check for LoanFunded events
             const fundedEvents = await microfinanceContract.queryFilter('LoanFunded', lastPolledBlock + 1, currentBlock);
             for (const event of fundedEvents) {
-                const { loanId, lender, startTime } = event.args;
-                console.log(`[Event] LoanFunded detected: Loan ${loanId} by ${lender}`);
+                const { id: onChainId, lender } = event.args;
+                console.log(`[Event] LoanFunded detected: Loan ${onChainId} by ${lender}`);
 
                 try {
                     const lenderUser = await User.findOne({ walletAddress: lender.toLowerCase() });
                     if (lenderUser) {
                         await updateTrustScore(lenderUser._id, 10, 'Funded a Loan', null, {
-                            onChainLoanId: loanId.toString()
+                            onChainLoanId: onChainId.toString()
                         });
                     }
 
-                    const loanReq = await LoanRequest.findOne({ simulatedSmartContractId: loanId.toString() });
+                    const loanReq = await LoanRequest.findOne({ simulatedSmartContractId: onChainId.toString() });
                     if (loanReq) {
                         loanReq.status = 'Funded';
                         loanReq.fundingTxHash = event.transactionHash;
@@ -225,14 +197,14 @@ async function listenToContractEvents() {
             // 2. Check for LoanRepaid events
             const repaidEvents = await microfinanceContract.queryFilter('LoanRepaid', lastPolledBlock + 1, currentBlock);
             for (const event of repaidEvents) {
-                const { loanId, borrower, amount } = event.args;
-                console.log(`[Event] LoanRepaid detected: Loan ${loanId} by ${borrower}`);
+                const { id: onChainId, borrower } = event.args;
+                console.log(`[Event] LoanRepaid detected: Loan ${onChainId} by ${borrower}`);
 
                 try {
-                    const loanReq = await LoanRequest.findOne({ simulatedSmartContractId: loanId.toString() }).populate('borrower');
+                    const loanReq = await LoanRequest.findOne({ simulatedSmartContractId: onChainId.toString() }).populate('borrower');
                     if (loanReq && loanReq.borrower) {
                         await updateTrustScore(loanReq.borrower._id, 25, 'Successful Repayment', loanReq._id, {
-                            onChainLoanId: loanId.toString()
+                            onChainLoanId: onChainId.toString()
                         });
 
                         // --- ON-CHAIN TRUST SCORE UPDATE ---

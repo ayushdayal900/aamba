@@ -8,7 +8,9 @@ import toast from 'react-hot-toast';
 import { FiLoader, FiTrendingUp, FiCheckCircle, FiInfo, FiSearch, FiGlobe } from 'react-icons/fi';
 
 import addresses from '../contracts/addresses.json';
-import microfinanceAbi from '../contracts/Microfinance.json';
+import _microfinanceJson from '../contracts/Microfinance.json';
+// Support both { abi: [...] } wrapped format and raw array format
+const microfinanceAbi = Array.isArray(_microfinanceJson) ? _microfinanceJson : _microfinanceJson.abi;
 import trustScoreAbi from '../contracts/TrustScoreRegistry.json';
 import { parseBlockchainError, checkIdentityOwnership } from '../blockchainService';
 import TransactionAccordion from '../components/TransactionAccordion';
@@ -55,15 +57,28 @@ const LenderDashboard = () => {
         if (!walletAddress) return;
         setOnChainLoading(true);
         try {
-            const provider = new ethers.JsonRpcProvider("https://ethereum-sepolia-rpc.publicnode.com");
+            const provider = walletClient
+                ? new ethers.BrowserProvider(walletClient.transport)
+                : new ethers.JsonRpcProvider("https://ethereum-sepolia-rpc.publicnode.com");
             const contract = new ethers.Contract(addresses.microfinance, microfinanceAbi, provider);
 
-            const count = await contract.loanCounter();
+            // Single call — getAllLoans(), filter client-side
+            let rawLoans = [];
+            try {
+                rawLoans = await contract.getAllLoans();
+                console.log("[LenderDashboard] getAllLoans() returned:", rawLoans.length, "loans");
+            } catch {
+                const count = await contract.loanCounter();
+                for (let i = 1; i <= Number(count); i++) {
+                    rawLoans.push(await contract.getLoanDetails(i));
+                }
+                console.log("[LenderDashboard] Fallback loop fetched:", rawLoans.length, "loans");
+            }
+
             const allCreated = [];
             const allFunded = [];
 
-            for (let i = 1; i <= Number(count); i++) {
-                const loan = await contract.getLoanDetails(i);
+            for (const loan of rawLoans) {
                 const formattedLoan = {
                     id: Number(loan.id),
                     borrower: loan.borrower,
@@ -74,18 +89,20 @@ const LenderDashboard = () => {
                     funded: loan.funded,
                     repaid: loan.repaid
                 };
-
                 if (loan.borrower.toLowerCase() === walletAddress.toLowerCase()) {
                     allCreated.push(formattedLoan);
                 }
-                if (loan.lender.toLowerCase() === walletAddress.toLowerCase()) {
+                if (loan.lender.toLowerCase() !== ethers.ZeroAddress.toLowerCase() &&
+                    loan.lender.toLowerCase() === walletAddress.toLowerCase()) {
                     allFunded.push(formattedLoan);
                 }
             }
 
+            console.log("[LenderDashboard] My created loans:", allCreated.length);
+            console.log("[LenderDashboard] My funded loans:", allFunded.length);
             setOnChainLoans({ created: allCreated, funded: allFunded });
         } catch (error) {
-            console.error("Error fetching on-chain loans:", error);
+            console.error("[LenderDashboard] Error fetching on-chain loans:", error);
         } finally {
             setOnChainLoading(false);
         }
@@ -93,7 +110,11 @@ const LenderDashboard = () => {
 
     const verifyIdentity = async () => {
         if (walletAddress) {
-            const hasNFT = await checkIdentityOwnership(walletAddress);
+            let provider = null;
+            if (walletClient) {
+                provider = new ethers.BrowserProvider(walletClient.transport);
+            }
+            const hasNFT = await checkIdentityOwnership(walletAddress, provider);
             if (!hasNFT && localStorage.getItem("isOnboarded") === "true") {
                 localStorage.removeItem("isOnboarded");
                 navigate("/onboarding");

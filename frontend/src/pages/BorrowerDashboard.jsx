@@ -8,7 +8,9 @@ import toast from 'react-hot-toast';
 import { FiLoader, FiCheckCircle, FiInfo, FiActivity, FiShield, FiPlus } from 'react-icons/fi';
 
 import addresses from '../contracts/addresses.json';
-import microfinanceAbi from '../contracts/Microfinance.json';
+import _microfinanceJson from '../contracts/Microfinance.json';
+// Support both { abi: [...] } wrapped format and raw array format
+const microfinanceAbi = Array.isArray(_microfinanceJson) ? _microfinanceJson : _microfinanceJson.abi;
 import { mintIdentity, checkIdentityOwnership, parseBlockchainError } from '../blockchainService';
 import LoanTimeline from '../components/LoanTimeline';
 import TransactionAccordion from '../components/TransactionAccordion';
@@ -30,11 +32,59 @@ const BorrowerDashboard = () => {
     const [onChainLoading, setOnChainLoading] = useState(false);
     const [hasIdentity, setHasIdentity] = useState(false);
     const [identityChecking, setIdentityChecking] = useState(true);
+    const [contractLinkInfo, setContractLinkInfo] = useState({ identity: 'Checking...', trust: 'Checking...' });
+
+    const checkContractSync = async () => {
+        try {
+            const provider = walletClient ? new ethers.BrowserProvider(walletClient.transport) : new ethers.JsonRpcProvider("https://ethereum-sepolia-rpc.publicnode.com");
+
+            // 1. Verify code exists at the address
+            const code = await provider.getCode(addresses.microfinance);
+            if (code === '0x' || code === '0x0') {
+                console.error("[Diagnostic] NO CONTRACT CODE FOUND at", addresses.microfinance);
+                setContractLinkInfo({ identity: 'UNRESOLVED ADDR', trust: 'MISSING CODE' });
+                return;
+            }
+
+            const contract = new ethers.Contract(addresses.microfinance, microfinanceAbi, provider);
+
+            // 2. Read identityContract address via getIdentityAddress() debug function
+            let identityAddr;
+            try {
+                identityAddr = await contract.getIdentityAddress();
+            } catch {
+                // Fallback: try old public variable name
+                try { identityAddr = await contract.identityContract(); } catch { identityAddr = await contract.identity(); }
+            }
+            const trustAddr = await contract.trustScore();
+
+            setContractLinkInfo({
+                identity: identityAddr,
+                trust: trustAddr
+            });
+
+            // Step 10: Log identity address so we can verify wiring
+            console.log("Microfinance identity address:", identityAddr);
+            console.log("Config identity address      :", addresses.identity);
+            console.log(
+                identityAddr?.toLowerCase() === addresses.identity?.toLowerCase()
+                    ? "[Diagnostic] ✅ Identity wiring MATCH — contract in sync."
+                    : "[Diagnostic] 🚨 MISMATCH — Microfinance is pointing to wrong Identity!"
+            );
+        } catch (err) {
+            console.error("[Diagnostic] Contract sync check failed:", err);
+            const msg = err.message?.includes('call revert exception') ? 'REVERTED ON READ' :
+                err.message?.includes('network') ? 'NETWORK ERROR' : 'ERROR: ' + err.message?.slice(0, 15);
+            setContractLinkInfo({ identity: msg, trust: 'Error' });
+        }
+    };
+
     useEffect(() => {
         if (walletAddress) {
             checkUserIdentity();
             fetchOnChainLoans();
             fetchMyLoans();
+            checkContractSync();
         }
 
         // Event listeners for real-time updates
@@ -59,24 +109,47 @@ const BorrowerDashboard = () => {
 
     const checkUserIdentity = async () => {
         setIdentityChecking(true);
-        const status = await checkIdentityOwnership(walletAddress);
-        setHasIdentity(status);
-        setIdentityChecking(false);
+        try {
+            let provider = null;
+            if (walletClient) {
+                provider = new ethers.BrowserProvider(walletClient.transport);
+            }
+            const status = await checkIdentityOwnership(walletAddress, provider);
+            setHasIdentity(status);
+        } catch (err) {
+            console.error("Identity check error:", err);
+        } finally {
+            setIdentityChecking(false);
+        }
     };
 
     const fetchOnChainLoans = async () => {
         if (!walletAddress) return;
         setOnChainLoading(true);
         try {
-            const provider = new ethers.JsonRpcProvider("https://ethereum-sepolia-rpc.publicnode.com");
+            const provider = walletClient
+                ? new ethers.BrowserProvider(walletClient.transport)
+                : new ethers.JsonRpcProvider("https://ethereum-sepolia-rpc.publicnode.com");
             const contract = new ethers.Contract(addresses.microfinance, microfinanceAbi, provider);
 
-            const count = await contract.loanCounter();
+            // Use getAllLoans() — single call, then filter client-side
+            let rawLoans = [];
+            try {
+                rawLoans = await contract.getAllLoans();
+                console.log("[BorrowerDashboard] getAllLoans() returned:", rawLoans.length, "loans");
+            } catch {
+                // Fallback to loop if old ABI cached
+                const count = await contract.loanCounter();
+                for (let i = 1; i <= Number(count); i++) {
+                    rawLoans.push(await contract.getLoanDetails(i));
+                }
+                console.log("[BorrowerDashboard] Fallback loop fetched:", rawLoans.length, "loans");
+            }
+
             const allCreated = [];
             const allFunded = [];
 
-            for (let i = 1; i <= Number(count); i++) {
-                const loan = await contract.getLoanDetails(i);
+            for (const loan of rawLoans) {
                 const formattedLoan = {
                     id: Number(loan.id),
                     borrower: loan.borrower,
@@ -87,18 +160,20 @@ const BorrowerDashboard = () => {
                     funded: loan.funded,
                     repaid: loan.repaid
                 };
-
                 if (loan.borrower.toLowerCase() === walletAddress.toLowerCase()) {
                     allCreated.push(formattedLoan);
                 }
-                if (loan.lender.toLowerCase() === walletAddress.toLowerCase()) {
+                if (loan.lender.toLowerCase() !== ethers.ZeroAddress.toLowerCase() &&
+                    loan.lender.toLowerCase() === walletAddress.toLowerCase()) {
                     allFunded.push(formattedLoan);
                 }
             }
 
+            console.log("[BorrowerDashboard] My created loans:", allCreated.length);
+            console.log("[BorrowerDashboard] My funded loans:", allFunded.length);
             setOnChainLoans({ created: allCreated, funded: allFunded });
         } catch (error) {
-            console.error("Error fetching on-chain loans:", error);
+            console.error("[BorrowerDashboard] Error fetching on-chain loans:", error);
         } finally {
             setOnChainLoading(false);
         }
@@ -168,14 +243,14 @@ const BorrowerDashboard = () => {
         setLoading(true);
 
         try {
-            const hasIdentity = await checkIdentityOwnership(walletAddress);
+            const provider = new ethers.BrowserProvider(walletClient.transport);
+            const hasIdentity = await checkIdentityOwnership(walletAddress, provider);
             if (!hasIdentity) {
                 toast.error("No identity NFT detected", { id: tid });
                 navigate("/onboarding");
                 return;
             }
 
-            const provider = new ethers.BrowserProvider(walletClient.transport);
             const signer = await provider.getSigner();
 
             // Verify Microfinance contract code exists
@@ -214,6 +289,7 @@ const BorrowerDashboard = () => {
             setPurpose('');
             fetchMyLoans();
         } catch (error) {
+            console.error("[Protocol Error] Request failed:", error);
             toast.error(parseBlockchainError(error), { id: tid });
         } finally {
             setLoading(false);
@@ -261,6 +337,48 @@ const BorrowerDashboard = () => {
                                     <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest truncate">
                                         {hasIdentity ? 'Authorized Node' : 'Missing Identity'}
                                     </p>
+                                </div>
+                            </div>
+                            {!hasIdentity && !identityChecking && (
+                                <button
+                                    onClick={checkUserIdentity}
+                                    className="mt-6 w-full py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[8px] font-black uppercase tracking-widest rounded-lg transition-all"
+                                >
+                                    Force Sync Local Node
+                                </button>
+                            )}
+                        </div>
+
+                        <div className="premium-card !p-6 bg-slate-900/50 border-dashed border-slate-800">
+                            <div className="flex items-center gap-2 mb-4 text-[8px] font-black uppercase tracking-widest text-slate-600">
+                                <FiActivity /> Protocol Health
+                            </div>
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-[8px] text-slate-500 font-bold uppercase">Network</span>
+                                    <span className="text-[8px] text-blue-500 font-black uppercase">{chainId === 11155111 ? 'Sepolia' : 'Wrong Network'}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-[8px] text-slate-500 font-bold uppercase">Identity Node</span>
+                                    <span className="text-[8px] text-slate-400 font-mono italic">{addresses.identity.slice(0, 6)}...{addresses.identity.slice(-4)}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-[8px] text-slate-500 font-bold uppercase">Linked Identity</span>
+                                    {(() => {
+                                        const val = contractLinkInfo.identity;
+                                        const isAddr = val && val.startsWith('0x') && val.length === 42;
+                                        const isMatch = isAddr && val.toLowerCase() === addresses.identity?.toLowerCase();
+                                        return (
+                                            <span className={`text-[8px] font-mono italic ${val === 'Checking...' ? 'text-slate-500' :
+                                                    !isAddr ? 'text-red-400' :
+                                                        isMatch ? 'text-emerald-400' : 'text-red-400'
+                                                }`}>
+                                                {val === 'Checking...' ? '...' :
+                                                    isAddr ? `${val.slice(0, 6)}...${val.slice(-4)}` :
+                                                        val.slice(0, 14)}
+                                            </span>
+                                        );
+                                    })()}
                                 </div>
                             </div>
                         </div>

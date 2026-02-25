@@ -92,10 +92,11 @@ export const mintIdentity = async (signer, onSent) => {
     }
 };
 
-export const checkIdentityOwnership = async (userAddress) => {
+export const checkIdentityOwnership = async (userAddress, customProvider = null) => {
     if (!userAddress) return false;
     try {
-        const provider = new ethers.JsonRpcProvider("https://ethereum-sepolia-rpc.publicnode.com");
+        // Use custom provider (e.g. from wallet) if available for better sync
+        const provider = customProvider || new ethers.JsonRpcProvider("https://ethereum-sepolia-rpc.publicnode.com");
 
         // 1. Verify code exists at the address to prevent decoding errors
         const code = await provider.getCode(IDENTITY_CONTRACT_ADDRESS);
@@ -110,6 +111,7 @@ export const checkIdentityOwnership = async (userAddress) => {
             provider
         );
         const balance = await identityContract.balanceOf(userAddress);
+        console.log(`[Blockchain] Identity Check for ${userAddress} on ${IDENTITY_CONTRACT_ADDRESS}: Balance = ${balance}`);
         return balance > 0n;
     } catch (error) {
         console.error("[Blockchain] Ownership check failed:", error);
