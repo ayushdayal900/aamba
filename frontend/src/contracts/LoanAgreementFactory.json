@@ -80,7 +80,7 @@
     },
     {
       "inputs": [],
-      "name": "INSURANCE_FEE",
+      "name": "INSURANCE_BPS",
       "outputs": [
         {
           "internalType": "uint256",

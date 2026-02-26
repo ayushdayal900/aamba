@@ -22,8 +22,8 @@ contract LoanAgreementFactory {
     address public immutable identityContract;
     address public immutable treasury;
 
-    /// @dev Fixed total insurance fee per loan (0.01 ETH), split across installments
-    uint256 public constant INSURANCE_FEE = 0.01 ether;
+    /// @dev Insurance fee = 1% of totalRepayment (100 basis points)
+    uint256 public constant INSURANCE_BPS = 100; // 1% in basis points (out of 10_000)
 
     // --- Loan Requests ---
     struct LoanRequest {
@@ -132,7 +132,7 @@ contract LoanAgreementFactory {
             request.totalRepayment,
             request.durationInMonths,
             treasury,
-            INSURANCE_FEE
+            INSURANCE_BPS * request.totalRepayment / 10_000  // 1% of totalRepayment, dynamic
         );
 
         address agreementAddr = address(agreement);
