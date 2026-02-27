@@ -1,22 +1,33 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Navbar from './components/Navbar';
-import Dashboard from './pages/Dashboard';
-import Lend from './pages/Lend';
-import Borrow from './pages/Borrow';
-import Onboarding from './pages/Onboarding';
-import Profile from './pages/Profile';
-import LandingPage from './pages/LandingPage';
-import SignIn from './pages/SignIn';
-import Signup from './pages/Signup';
-import HowItWorks from './pages/HowItWorks';
-import { useAuth } from './context/AuthContext';
-import { useAccount } from 'wagmi';
-import { checkIdentityOwnership } from './blockchainService';
-import { useState, useEffect } from 'react';
-import Layout from './components/Layout';
+import React from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import Navbar from "./components/Navbar";
+import Dashboard from "./pages/Dashboard";
+import Lend from "./pages/Lend";
+import Borrow from "./pages/Borrow";
+import Onboarding from "./pages/Onboarding";
+import Profile from "./pages/Profile";
+import LandingPage from "./pages/LandingPage";
+import SignIn from "./pages/SignIn";
+import Signup from "./pages/Signup";
+import HowItWorks from "./pages/HowItWorks";
+import { useAuth } from "./context/AuthContext";
+import { useAccount } from "wagmi";
+import { checkIdentityOwnership } from "./blockchainService";
+import { useState, useEffect } from "react";
+import Layout from "./components/Layout";
+import SupportBot from "./components/SupportBot";
 
-const ProtectedRoute = ({ children, loading, isAuthenticated, walletConnected }) => {
+const ProtectedRoute = ({
+  children,
+  loading,
+  isAuthenticated,
+  walletConnected,
+}) => {
   const isOnboarded = localStorage.getItem("isOnboarded") === "true";
 
   console.log("--- ProtectedRoute Debug ---");
@@ -29,7 +40,9 @@ const ProtectedRoute = ({ children, loading, isAuthenticated, walletConnected })
       <div className="min-h-screen bg-fintech-dark flex justify-center items-center text-white font-medium">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-fintech-accent border-t-transparent rounded-full animate-spin"></div>
-          <span className="animate-pulse tracking-widest uppercase text-xs font-bold text-slate-500 text-center">Protocol Synchronizing...</span>
+          <span className="animate-pulse tracking-widest uppercase text-xs font-bold text-slate-500 text-center">
+            Protocol Synchronizing...
+          </span>
         </div>
       </div>
     );
@@ -75,7 +88,15 @@ function App() {
       <div className="min-h-screen bg-fintech-dark">
         <Routes>
           {/* Public Routes */}
-          <Route path="/" element={<><Navbar /><LandingPage /></>} />
+          <Route
+            path="/"
+            element={
+              <>
+                <Navbar />
+                <LandingPage />
+              </>
+            }
+          />
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<Signup />} />
 
@@ -160,6 +181,7 @@ function App() {
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <SupportBot />
       </div>
     </Router>
   );
