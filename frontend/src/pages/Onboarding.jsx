@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth, api } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { ethers } from 'ethers';
@@ -310,14 +310,14 @@ const Onboarding = () => {
     return (
         <div className="min-h-screen bg-fintech-dark flex flex-col items-center justify-start py-12 md:py-24 px-4 md:px-6 font-sans text-slate-200 relative overflow-x-hidden">
             <div className="absolute top-0 left-0 w-full h-full pointer-events-none -z-10">
-                <div className="absolute top-[-20%] right-[-10%] w-[60%] aspect-square bg-blue-600/10 rounded-full blur-[120px]"></div>
+                <div className="absolute top-[-20%] right-[-10%] w-[60%] aspect-square bg-fintech-accent/10 rounded-full blur-[120px]"></div>
                 <div className="absolute bottom-[-20%] left-[-10%] w-[60%] aspect-square bg-fintech-accent/5 rounded-full blur-[120px]"></div>
             </div>
 
             {/* Exit Button */}
             <button
                 onClick={handleExitOnboarding}
-                className="absolute top-6 left-6 md:top-10 md:left-10 text-slate-600 hover:text-white flex items-center gap-2 transition-all text-[10px] font-black uppercase tracking-widest group"
+                className="absolute top-6 left-6 md:top-10 md:left-10 text-fintech-muted hover:text-fintech-heading flex items-center gap-2 transition-all text-[10px] font-semibold uppercase tracking-wide group"
             >
                 <FiXCircle className="group-hover:rotate-90 transition-transform duration-300" /> Exit Protocol Initialization
             </button>
@@ -327,20 +327,20 @@ const Onboarding = () => {
                 <div className="flex justify-between items-center mb-6 overflow-x-auto no-scrollbar pb-4 md:pb-0 px-2 gap-8 md:gap-0">
                     {steps.map((s) => (
                         <div key={s.id} className="flex flex-col items-center group flex-shrink-0">
-                            <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl flex items-center justify-center border-2 transition-all duration-700 ${currentStep >= s.id ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20' : 'bg-slate-900 border-slate-800 text-slate-600'}`}>
+                            <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl flex items-center justify-center border-2 transition-all duration-700 ${currentStep >= s.id ? 'bg-fintech-accent border-fintech-accent text-fintech-heading shadow-lg shadow-fintech-accent/20' : 'bg-fintech-dark border-fintech-border text-fintech-muted'}`}>
                                 {currentStep > s.id ? <FiCheckCircle size={18} /> : s.icon}
                             </div>
-                            <span className={`text-[8px] md:text-[9px] mt-3 font-black uppercase tracking-widest ${currentStep >= s.id ? 'text-white' : 'text-slate-700'}`}>
+                            <span className={`text-[8px] md:text-[9px] mt-3 font-semibold uppercase tracking-wide ${currentStep >= s.id ? 'text-fintech-heading' : 'text-fintech-muted'}`}>
                                 {s.title}
                             </span>
                         </div>
                     ))}
                 </div>
-                <div className="h-1 w-full bg-slate-900 rounded-full overflow-hidden">
+                <div className="h-1 w-full bg-fintech-dark rounded-full overflow-hidden">
                     <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${progress}%` }}
-                        className="h-full bg-blue-600 rounded-full shadow-lg shadow-blue-600/30"
+                        className="h-full bg-fintech-accent rounded-full shadow-lg shadow-blue-600/30"
                     />
                 </div>
             </div>
@@ -350,18 +350,18 @@ const Onboarding = () => {
                     {/* ROLE */}
                     {currentStep === 2 && (
                         <motion.div key="s2" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="text-center">
-                            <h2 className="text-3xl md:text-4xl font-black text-white mb-2 tracking-tighter italic">Primary Access Role</h2>
-                            <p className="text-sm md:text-base text-slate-500 font-medium mb-10 md:mb-12">How will you participate in the PanCred protocol?</p>
+                            <h2 className="text-3xl md:text-4xl font-black text-fintech-heading mb-2 tracking-tighter italic">Primary Access Role</h2>
+                            <p className="text-sm md:text-base text-fintech-muted font-medium mb-10 md:mb-12">How will you participate in the PanCred protocol?</p>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 text-left">
-                                <button onClick={() => handleRoleSelect('Lender')} className="group p-8 md:p-10 bg-slate-900/50 border border-slate-800 rounded-[2.5rem] hover:border-blue-600 transition-all">
-                                    <div className="w-12 h-12 md:w-14 md:h-14 bg-blue-500/10 text-blue-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform"><FiBriefcase size={28} /></div>
-                                    <h3 className="text-xl md:text-2xl font-black text-white mb-2 italic">Lender</h3>
-                                    <p className="text-xs text-slate-500 leading-relaxed font-medium">Deploy capital to secure, protocol-verified loan requests and earn transparent interest.</p>
+                                <button onClick={() => handleRoleSelect('Lender')} className="group p-8 md:p-10 bg-fintech-dark/50 border border-fintech-border rounded-[2.5rem] hover:border-fintech-accent transition-all">
+                                    <div className="w-12 h-12 md:w-14 md:h-14 bg-fintech-accent/10 text-fintech-accent rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform"><FiBriefcase size={28} /></div>
+                                    <h3 className="text-xl md:text-2xl font-black text-fintech-heading mb-2 italic">Lender</h3>
+                                    <p className="text-xs text-fintech-muted leading-relaxed font-medium">Deploy capital to secure, protocol-verified loan requests and earn transparent interest.</p>
                                 </button>
-                                <button onClick={() => handleRoleSelect('Borrower')} className="group p-8 md:p-10 bg-slate-900/50 border border-slate-800 rounded-[2.5rem] hover:border-blue-600 transition-all">
-                                    <div className="w-12 h-12 md:w-14 md:h-14 bg-blue-500/10 text-blue-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform"><FiUser size={28} /></div>
-                                    <h3 className="text-xl md:text-2xl font-black text-white mb-2 italic">Borrower</h3>
-                                    <p className="text-xs text-slate-500 leading-relaxed font-medium">Obtain peer-to-peer capital backed by your on-chain reputation and verified identity.</p>
+                                <button onClick={() => handleRoleSelect('Borrower')} className="group p-8 md:p-10 bg-fintech-dark/50 border border-fintech-border rounded-[2.5rem] hover:border-fintech-accent transition-all">
+                                    <div className="w-12 h-12 md:w-14 md:h-14 bg-fintech-accent/10 text-fintech-accent rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform"><FiUser size={28} /></div>
+                                    <h3 className="text-xl md:text-2xl font-black text-fintech-heading mb-2 italic">Borrower</h3>
+                                    <p className="text-xs text-fintech-muted leading-relaxed font-medium">Obtain peer-to-peer capital backed by your on-chain reputation and verified identity.</p>
                                 </button>
                             </div>
                         </motion.div>
@@ -370,16 +370,16 @@ const Onboarding = () => {
                     {/* IDENTITY */}
                     {currentStep === 3 && (
                         <motion.div key="s3" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="max-w-md mx-auto w-full">
-                            <h2 className="text-3xl md:text-4xl font-black text-white mb-2 text-center tracking-tighter italic">Aadhar Card Number</h2>
-                            <p className="text-sm md:text-base text-slate-500 font-medium text-center mb-10 md:mb-12">We use decentralized verification to issuance your Soulbound ID.</p>
+                            <h2 className="text-3xl md:text-4xl font-black text-fintech-heading mb-2 text-center tracking-tighter italic">Aadhar Card Number</h2>
+                            <p className="text-sm md:text-base text-fintech-muted font-medium text-center mb-10 md:mb-12">We use decentralized verification to issuance your Soulbound ID.</p>
                             <form onSubmit={handleAadhaarSubmit} className="space-y-6 md:space-y-8">
                                 <div className="premium-card !p-8 md:!p-10">
-                                    <label className="text-[9px] md:text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] block mb-6 md:mb-8 text-center">12-Digit Unified Identifier</label>
+                                    <label className="text-[9px] md:text-[10px] font-black text-fintech-muted uppercase tracking-[0.2em] block mb-6 md:mb-8 text-center">12-Digit Unified Identifier</label>
                                     <input
                                         type="text" maxLength={12} value={aadhaar}
                                         onChange={(e) => setAadhaar(e.target.value.replace(/\D/g, ''))}
                                         placeholder="0000 0000 0000"
-                                        className="w-full bg-slate-950 border border-slate-800 focus:border-blue-600 rounded-2xl py-5 md:py-6 text-xl md:text-2xl font-mono tracking-[0.4em] text-white text-center outline-none transition-all shadow-inner"
+                                        className="w-full bg-white border border-fintech-border focus:border-fintech-accent rounded-2xl py-5 md:py-6 text-xl md:text-2xl font-mono tracking-[0.4em] text-fintech-heading text-center outline-none transition-all shadow-inner"
                                         required
                                     />
                                 </div>
@@ -393,16 +393,16 @@ const Onboarding = () => {
                     {/* LIVELINESS — AWS Rekognition */}
                     {currentStep === 4 && (
                         <motion.div key="s4" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="text-center">
-                            <h2 className="text-3xl md:text-4xl font-black text-white mb-2 tracking-tighter italic">Biometric Liveliness</h2>
-                            <p className="text-sm md:text-base text-slate-500 font-medium mb-8">Confirm your presence to anchor your identity on-chain.</p>
+                            <h2 className="text-3xl md:text-4xl font-black text-fintech-heading mb-2 tracking-tighter italic">Biometric Liveliness</h2>
+                            <p className="text-sm md:text-base text-fintech-muted font-medium mb-8">Confirm your presence to anchor your identity on-chain.</p>
 
                             {/* Idle — show start button */}
                             {livenessPhase === 'idle' && (
                                 <div className="flex flex-col items-center gap-6">
-                                    <div className="w-24 h-24 bg-blue-600/10 text-blue-500 rounded-full flex items-center justify-center">
+                                    <div className="w-24 h-24 bg-fintech-accent/10 text-fintech-accent rounded-full flex items-center justify-center">
                                         <FiCamera size={48} />
                                     </div>
-                                    <p className="text-slate-400 text-sm max-w-sm">AWS will prompt you to move your face into an oval. The check takes about 5 seconds.</p>
+                                    <p className="text-fintech-muted text-sm max-w-sm">AWS will prompt you to move your face into an oval. The check takes about 5 seconds.</p>
                                     <button onClick={startLivenessSession} className="btn-primary !px-12 !py-5 text-[10px] md:text-xs font-black uppercase tracking-[0.2em] shadow-xl">
                                         Start Liveness Check
                                     </button>
@@ -412,8 +412,8 @@ const Onboarding = () => {
                             {/* Loading — creating session */}
                             {livenessPhase === 'loading' && (
                                 <div className="flex flex-col items-center gap-4 py-8">
-                                    <FiLoader className="text-blue-500 animate-spin" size={48} />
-                                    <p className="text-slate-400 text-sm animate-pulse">Initialising secure session…</p>
+                                    <FiLoader className="text-fintech-accent animate-spin" size={48} />
+                                    <p className="text-fintech-muted text-sm animate-pulse">Initialising secure session…</p>
                                 </div>
                             )}
 
@@ -436,7 +436,7 @@ const Onboarding = () => {
                             {livenessPhase === 'error' && (
                                 <div className="flex flex-col items-center gap-4 py-8">
                                     <p className="text-red-400 font-semibold">{livenessError || 'Something went wrong'}</p>
-                                    <button onClick={startLivenessSession} className="btn-primary !px-10 !py-4 text-xs font-black uppercase tracking-widest">
+                                    <button onClick={startLivenessSession} className="btn-primary !px-10 !py-4 text-xs font-semibold uppercase tracking-wide">
                                         Retry
                                     </button>
                                 </div>
@@ -447,10 +447,10 @@ const Onboarding = () => {
                     {/* WALLET */}
                     {currentStep === 5 && (
                         <motion.div key="s5" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="text-center max-w-md mx-auto w-full">
-                            <h2 className="text-3xl md:text-4xl font-black text-white mb-2 tracking-tighter italic">Protocol Link</h2>
-                            <p className="text-sm md:text-base text-slate-500 font-medium mb-10 md:mb-12">Anchor your verified identity to a Web3 wallet.</p>
-                            <div className="premium-card !p-12 md:!p-16 border-2 border-dashed border-slate-800 bg-slate-950/50 mb-8 flex flex-col items-center group transition-all">
-                                <div className="w-16 h-16 md:w-20 md:h-20 bg-blue-600/10 text-blue-600 rounded-3xl flex items-center justify-center mb-8 md:mb-10 group-hover:scale-110 transition-transform"><FiPocket size={40} /></div>
+                            <h2 className="text-3xl md:text-4xl font-black text-fintech-heading mb-2 tracking-tighter italic">Protocol Link</h2>
+                            <p className="text-sm md:text-base text-fintech-muted font-medium mb-10 md:mb-12">Anchor your verified identity to a Web3 wallet.</p>
+                            <div className="premium-card !p-12 md:!p-16 border-2 border-dashed border-fintech-border bg-fintech-dark/50 mb-8 flex flex-col items-center group transition-all">
+                                <div className="w-16 h-16 md:w-20 md:h-20 bg-fintech-accent/10 text-fintech-accent rounded-3xl flex items-center justify-center mb-8 md:mb-10 group-hover:scale-110 transition-transform"><FiPocket size={40} /></div>
                                 <div className="w-full overflow-hidden flex justify-center mb-8">
                                     <ConnectButton />
                                 </div>
@@ -472,19 +472,19 @@ const Onboarding = () => {
                     {/* MINT */}
                     {currentStep === 6 && (
                         <motion.div key="s6" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="text-center max-w-md mx-auto w-full">
-                            <h2 className="text-3xl md:text-4xl font-black text-white mb-2 tracking-tighter italic">Issue Soulbound ID</h2>
-                            <p className="text-sm md:text-base text-slate-500 font-medium mb-10 md:mb-12">Minting your immutable protocol identifier on Sepolia.</p>
+                            <h2 className="text-3xl md:text-4xl font-black text-fintech-heading mb-2 tracking-tighter italic">Issue Soulbound ID</h2>
+                            <p className="text-sm md:text-base text-fintech-muted font-medium mb-10 md:mb-12">Minting your immutable protocol identifier on Sepolia.</p>
 
                             <div className="relative group mx-auto mb-10 md:mb-12 w-full max-w-[280px] md:max-w-xs">
-                                <div className="absolute inset-0 bg-blue-600/10 blur-3xl pointer-events-none"></div>
-                                <div className="relative bg-slate-950 border-2 border-blue-600/30 p-8 md:p-12 rounded-[4rem] aspect-square flex flex-col items-center justify-center shadow-2xl">
-                                    <FiShield size={80} className="md:w-24 md:h-24 text-blue-600 mb-6 drop-shadow-md" />
-                                    <h4 className="font-black text-xl md:text-2xl text-white italic tracking-tighter">PanCred ID</h4>
-                                    <p className="text-[8px] md:text-[9px] text-slate-600 font-mono mt-4 truncate w-full">{address}</p>
+                                <div className="absolute inset-0 bg-fintech-accent/10 blur-3xl pointer-events-none"></div>
+                                <div className="relative bg-fintech-dark border-2 border-fintech-accent/30 p-8 md:p-12 rounded-[4rem] aspect-square flex flex-col items-center justify-center shadow-2xl">
+                                    <FiShield size={80} className="md:w-24 md:h-24 text-fintech-accent mb-6 drop-shadow-md" />
+                                    <h4 className="font-black text-xl md:text-2xl text-fintech-heading italic tracking-tighter">PanCred ID</h4>
+                                    <p className="text-[8px] md:text-[9px] text-fintech-muted font-mono mt-4 truncate w-full">{address}</p>
                                     {txnHash && (
-                                        <div className="mt-8 p-4 bg-slate-900 rounded-2xl border border-slate-800 w-full text-left">
-                                            <p className="text-[8px] md:text-[9px] text-blue-500 font-black uppercase tracking-widest mb-1">Broadcasting</p>
-                                            <a href={`https://sepolia.etherscan.io/tx/${txnHash}`} target="_blank" rel="noreferrer" className="text-[8px] md:text-[9px] text-white font-mono flex items-center gap-2 hover:text-blue-500 transition-colors">Explorer <FiExternalLink size={10} /></a>
+                                        <div className="mt-8 p-4 bg-fintech-dark rounded-2xl border border-fintech-border w-full text-left">
+                                            <p className="text-[8px] md:text-[9px] text-fintech-accent font-semibold uppercase tracking-wide mb-1">Broadcasting</p>
+                                            <a href={`https://sepolia.etherscan.io/tx/${txnHash}`} target="_blank" rel="noreferrer" className="text-[8px] md:text-[9px] text-fintech-heading font-mono flex items-center gap-2 hover:text-fintech-accent transition-colors">Explorer <FiExternalLink size={10} /></a>
                                         </div>
                                     )}
                                 </div>
@@ -492,22 +492,22 @@ const Onboarding = () => {
                             <div className="mb-8">
                                 {chainId !== 11155111 ? (
                                     <div className="flex flex-col items-center gap-3">
-                                        <div className="px-5 py-2.5 bg-red-500/10 text-red-500 border border-red-500/10 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                                        <div className="px-5 py-2.5 bg-red-500/10 text-red-500 border border-red-500/10 rounded-xl text-[10px] font-semibold uppercase tracking-wide flex items-center gap-2">
                                             <FiXCircle /> Wrong Network (Mainnet/Other)
                                         </div>
                                         <button
                                             onClick={() => switchChain({ chainId: 11155111 })}
-                                            className="text-[10px] font-black uppercase tracking-widest text-blue-500 hover:text-blue-400 underline underline-offset-4"
+                                            className="text-[10px] font-semibold uppercase tracking-wide text-fintech-accent hover:text-fintech-accent underline underline-offset-4"
                                         >
                                             Switch to Sepolia
                                         </button>
                                     </div>
                                 ) : !walletClient ? (
-                                    <div className="px-5 py-2.5 bg-amber-500/10 text-amber-500 border border-amber-500/10 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 animate-pulse">
+                                    <div className="px-5 py-2.5 bg-amber-500/10 text-amber-500 border border-amber-500/10 rounded-xl text-[10px] font-semibold uppercase tracking-wide flex items-center gap-2 animate-pulse">
                                         <FiActivity className="animate-spin" /> Signer Initializing...
                                     </div>
                                 ) : (
-                                    <div className="px-5 py-2.5 bg-emerald-500/10 text-emerald-500 border border-emerald-500/10 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                                    <div className="px-5 py-2.5 bg-emerald-500/10 text-emerald-500 border border-emerald-500/10 rounded-xl text-[10px] font-semibold uppercase tracking-wide flex items-center gap-2">
                                         <FiCheckCircle /> Wallet Signer Ready
                                     </div>
                                 )}
@@ -530,9 +530,9 @@ const Onboarding = () => {
                     {/* SUCCESS */}
                     {currentStep === 7 && (
                         <motion.div key="s7" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-6 md:py-10">
-                            <div className="w-20 h-20 md:w-24 md:h-24 bg-blue-600/10 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-8 md:mb-10 shadow-lg shadow-blue-600/10"><FiCheckCircle size={40} className="md:w-12 md:h-12" /></div>
-                            <h2 className="text-4xl md:text-5xl font-black text-white mb-4 tracking-tighter italic">Authorization Complete.</h2>
-                            <p className="text-sm md:text-base text-slate-500 max-w-md mx-auto mb-10 md:mb-12 font-medium">Your decentralized identity is now recognized by the PanCred protocol.</p>
+                            <div className="w-20 h-20 md:w-24 md:h-24 bg-fintech-accent/10 text-fintech-accent rounded-full flex items-center justify-center mx-auto mb-8 md:mb-10 shadow-lg shadow-blue-600/10"><FiCheckCircle size={40} className="md:w-12 md:h-12" /></div>
+                            <h2 className="text-4xl md:text-5xl font-black text-fintech-heading mb-4 tracking-tighter italic">Authorization Complete.</h2>
+                            <p className="text-sm md:text-base text-fintech-muted max-w-md mx-auto mb-10 md:mb-12 font-medium">Your decentralized identity is now recognized by the PanCred protocol.</p>
                             <button onClick={() => navigate('/dashboard')} className="w-full bg-white text-black font-black py-5 md:py-6 rounded-2xl hover:bg-slate-200 transition-all shadow-xl flex items-center justify-center gap-4 text-base md:text-lg uppercase tracking-widest">Enter Protocol Terminal <FiArrowRight size={24} /></button>
                         </motion.div>
                     )}

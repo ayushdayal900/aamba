@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -21,8 +21,8 @@ const LandingPage = () => {
             icon: <FiShield />,
             title: "Soulbound Identity NFT",
             description: "Non-transferable on-chain identity minted after Aadhaar + biometric KYC. Your key to the entire protocol.",
-            color: "text-blue-500",
-            bg: "bg-blue-500/10",
+            color: "text-fintech-accent",
+            bg: "bg-fintech-accent/10",
             tag: "ERC-721 Soulbound"
         },
         {
@@ -72,8 +72,8 @@ const LandingPage = () => {
             step: "01",
             title: "Sign Up & Verify Identity",
             desc: "Register, complete Aadhaar + biometric KYC, connect your wallet. Your Soulbound Identity NFT is minted — trust score starts at 300.",
-            color: "text-blue-500",
-            border: "border-blue-500/20"
+            color: "text-fintech-accent",
+            border: "border-fintech-accent/20"
         },
         {
             step: "02",
@@ -124,25 +124,24 @@ const LandingPage = () => {
         <div className="min-h-screen bg-fintech-dark font-sans text-slate-100 overflow-x-hidden">
             <main>
                 {/* ── Hero ── */}
-                <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 px-4 md:px-6">
+                <section className="relative pt-40 pb-24 md:pt-56 md:pb-40 px-4 md:px-6">
                     <div className="global-container text-center relative z-10">
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[800px] aspect-square bg-blue-600/10 rounded-full blur-[120px] pointer-events-none -z-10 opacity-50 md:opacity-100" />
 
                         <motion.div
                             initial={{ opacity: 0, y: 30 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.8 }}
                         >
-                            <div className="inline-flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-8 md:mb-12">
+                            <div className="inline-flex items-center gap-2 bg-white border border-fintech-border px-4 py-2 rounded-full text-sm font-semibold uppercase tracking-wide text-fintech-muted mb-8 md:mb-12">
                                 <FiCheckCircle className="text-emerald-500" /> Live on Ethereum Sepolia
                             </div>
 
-                            <h1 className="text-4xl sm:text-6xl lg:text-8xl font-black text-white mb-6 md:mb-10 tracking-tighter leading-[1.1] md:leading-[0.9]">
+                            <h1 className="text-4xl sm:text-6xl lg:text-8xl font-black text-fintech-heading mb-6 md:mb-10 tracking-tighter leading-[1.1] md:leading-[0.9]">
                                 Microfinance <br className="hidden sm:block" />
-                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600">Reimagined.</span>
+                                <span className="text-fintech-accent">Reimagined.</span>
                             </h1>
 
-                            <p className="text-sm md:text-lg text-slate-400 max-w-2xl mx-auto mb-10 md:mb-16 leading-relaxed font-medium">
+                            <p className="text-base md:text-lg text-fintech-muted max-w-2xl mx-auto mb-10 md:mb-16 leading-relaxed font-medium">
                                 Peer-to-peer lending powered by decentralized identity, on-chain trust scores, and dynamic insurance — a transparent financial network with no intermediaries.
                             </p>
 
@@ -155,7 +154,7 @@ const LandingPage = () => {
                                 </button>
                                 <button
                                     onClick={() => navigate('/how-it-works')}
-                                    className="bg-slate-900 hover:bg-slate-800 text-white font-black py-5 px-8 md:px-12 rounded-2xl transition-all border border-slate-800 text-xs md:text-sm uppercase tracking-[0.2em] w-full sm:w-auto shadow-xl"
+                                    className="bg-fintech-dark hover:bg-fintech-dark text-fintech-heading font-semibold py-5 px-8 md:px-12 rounded-2xl transition-all border border-fintech-border text-xs md:text-sm uppercase tracking-[0.2em] w-full sm:w-auto shadow-xl"
                                 >
                                     How it Works
                                 </button>
@@ -165,22 +164,22 @@ const LandingPage = () => {
                 </section>
 
                 {/* ── Proof Bar ── */}
-                <section className="py-16 md:py-24 border-y border-fintech-border/30 bg-fintech-surface/30">
+                <section className="py-20 md:py-28 border-y border-fintech-border bg-white/30">
                     <div className="global-container grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12 text-center">
                         {[
                             { val: "1%", label: "Dynamic Insurance Fee" },
                             {
                                 val: sbtCount === null
-                                    ? <span className="animate-pulse text-slate-600">...</span>
+                                    ? <span className="animate-pulse text-fintech-muted">...</span>
                                     : sbtCount === 0 || sbtCount ? sbtCount : "–",
                                 label: "SBT Identities Minted"
                             },
                             { val: "0→1000", label: "Trust Score Scale" },
                             { val: "100%", label: "On-Chain Audit" }
                         ].map((s, i) => (
-                            <div key={i} className="space-y-1">
-                                <div className="text-2xl md:text-4xl font-black text-white leading-none tracking-tighter">{s.val}</div>
-                                <div className="text-[8px] md:text-[10px] text-slate-600 font-black uppercase tracking-widest">{s.label}</div>
+                            <div key={i} className="space-y-3">
+                                <div className="text-4xl md:text-5xl font-bold text-fintech-heading leading-none tracking-tight">{s.val}</div>
+                                <div className="text-xs text-fintech-muted font-semibold uppercase tracking-wide">{s.label}</div>
                             </div>
                         ))}
                     </div>
@@ -190,13 +189,13 @@ const LandingPage = () => {
                 <section className="py-20 md:py-32 px-4 md:px-6">
                     <div className="global-container">
                         <div className="text-center mb-16 md:mb-24">
-                            <p className="text-slate-500 font-black uppercase tracking-[0.3em] text-[9px] md:text-[10px] mb-4">End-to-End Protocol Flow</p>
-                            <h2 className="text-3xl md:text-5xl font-black text-white italic tracking-tighter">How PanCred Works</h2>
+                            <p className="text-fintech-accent font-semibold uppercase tracking-[0.2em] text-xs mb-4">End-to-End Protocol Flow</p>
+                            <h2 className="text-3xl md:text-5xl font-bold text-fintech-heading tracking-tight">How PanCred Works</h2>
                         </div>
 
                         <div className="relative">
                             {/* Vertical connector line */}
-                            <div className="absolute left-6 md:left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-blue-600/40 via-purple-600/20 to-transparent hidden sm:block" />
+                            <div className="absolute left-6 md:left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-fintech-accent/40 via-fintech-accent/20 to-transparent hidden sm:block" />
 
                             <div className="space-y-8 md:space-y-0">
                                 {howItWorks.map((step, i) => (
@@ -209,10 +208,10 @@ const LandingPage = () => {
                                         className={`md:flex md:gap-12 md:items-center ${i % 2 === 1 ? 'md:flex-row-reverse' : ''}`}
                                     >
                                         <div className="md:w-1/2 md:text-right flex-shrink-0 hidden md:block" />
-                                        <div className={`premium-card !p-8 md:w-1/2 border-l-4 ${step.border} relative`}>
-                                            <span className={`text-[10px] font-black uppercase tracking-[0.3em] ${step.color} block mb-2`}>Step {step.step}</span>
-                                            <h3 className="text-xl md:text-2xl font-black text-white italic tracking-tight mb-3">{step.title}</h3>
-                                            <p className="text-slate-400 text-sm leading-relaxed font-medium">{step.desc}</p>
+                                        <div className={`premium-card !p-10 md:w-1/2 border-l-4 ${step.border} relative`}>
+                                            <span className={`text-xs font-black uppercase tracking-[0.3em] ${step.color} block mb-2`}>Step {step.step}</span>
+                                            <h3 className="text-xl md:text-2xl font-black text-fintech-heading tracking-tight mb-4">{step.title}</h3>
+                                            <p className="text-fintech-muted text-base leading-[1.7] font-normal">{step.desc}</p>
                                         </div>
                                     </motion.div>
                                 ))}
@@ -222,11 +221,11 @@ const LandingPage = () => {
                 </section>
 
                 {/* ── Pillars / Core Features ── */}
-                <section className="py-20 md:py-32 px-4 md:px-6 bg-fintech-surface/20">
+                <section className="py-20 md:py-32 px-4 md:px-6 bg-white/20">
                     <div className="global-container">
                         <div className="text-center mb-16 md:mb-24">
-                            <p className="text-slate-500 font-black uppercase tracking-[0.3em] text-[9px] md:text-[10px] mb-4">Protocol Architecture</p>
-                            <h2 className="text-3xl md:text-5xl font-black text-white italic tracking-tighter">The Pillars of PanCred</h2>
+                            <p className="text-fintech-muted font-black uppercase tracking-[0.3em] text-[9px] md:text-[10px] mb-4">Protocol Architecture</p>
+                            <h2 className="text-3xl md:text-5xl font-bold text-fintech-heading tracking-tight">The Pillars of PanCred</h2>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-10">
@@ -242,9 +241,9 @@ const LandingPage = () => {
                                     <div className={`w-14 h-14 md:w-16 md:h-16 mx-auto mb-5 ${f.bg} ${f.color} rounded-2xl flex items-center justify-center text-2xl md:text-3xl group-hover:scale-110 transition-transform duration-500 shadow-xl`}>
                                         {f.icon}
                                     </div>
-                                    <span className={`text-[8px] font-black uppercase tracking-[0.25em] ${f.color} block mb-3`}>{f.tag}</span>
-                                    <h3 className="text-xl md:text-2xl font-black text-white mb-4 italic tracking-tight">{f.title}</h3>
-                                    <p className="text-slate-500 text-sm leading-relaxed font-medium">{f.description}</p>
+                                    <span className={`text-xs font-black uppercase tracking-[0.25em] ${f.color} block mb-3`}>{f.tag}</span>
+                                    <h3 className="text-xl md:text-2xl font-black text-fintech-heading mb-4 italic tracking-tight">{f.title}</h3>
+                                    <p className="text-fintech-muted text-base leading-[1.7] font-normal">{f.description}</p>
                                 </motion.div>
                             ))}
                         </div>
@@ -255,8 +254,8 @@ const LandingPage = () => {
                 <section className="py-20 md:py-32 px-4 md:px-6">
                     <div className="global-container">
                         <div className="text-center mb-16">
-                            <p className="text-slate-500 font-black uppercase tracking-[0.3em] text-[9px] md:text-[10px] mb-4">Everything Built-In</p>
-                            <h2 className="text-3xl md:text-5xl font-black text-white italic tracking-tighter">Complete Feature Set</h2>
+                            <p className="text-fintech-muted font-black uppercase tracking-[0.3em] text-[9px] md:text-[10px] mb-4">Everything Built-In</p>
+                            <h2 className="text-3xl md:text-5xl font-bold text-fintech-heading tracking-tight">Complete Feature Set</h2>
                         </div>
 
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
@@ -267,12 +266,12 @@ const LandingPage = () => {
                                     whileInView={{ opacity: 1, y: 0 }}
                                     viewport={{ once: true }}
                                     transition={{ delay: i * 0.05 }}
-                                    className="premium-card !p-5 flex items-center gap-3 group hover:border-blue-600/30 transition-all"
+                                    className="premium-card !p-6 flex items-center gap-3 group hover:border-fintech-accent/50 transition-all"
                                 >
-                                    <div className="w-8 h-8 bg-blue-500/10 text-blue-500 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                                    <div className="w-8 h-8 bg-fintech-accent/10 text-fintech-accent rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
                                         {f.icon}
                                     </div>
-                                    <span className="text-[10px] font-black text-slate-300 uppercase tracking-wider leading-tight">{f.label}</span>
+                                    <span className="text-xs font-black text-fintech-heading uppercase tracking-wider leading-tight">{f.label}</span>
                                 </motion.div>
                             ))}
                         </div>
@@ -286,11 +285,11 @@ const LandingPage = () => {
                             initial={{ opacity: 0, scale: 0.97 }}
                             whileInView={{ opacity: 1, scale: 1 }}
                             viewport={{ once: true }}
-                            className="bg-gradient-to-br from-blue-600/20 via-slate-900 to-purple-600/10 border border-blue-600/20 rounded-[3rem] p-12 md:p-20 text-center relative overflow-hidden"
+                            className="bg-white border border-fintech-accent/20 rounded-[3rem] p-16 md:p-24 text-center overflow-hidden"
                         >
-                            <div className="absolute inset-0 bg-blue-600/5 rounded-[3rem] pointer-events-none" />
-                            <h2 className="text-3xl md:text-5xl font-black text-white italic tracking-tighter mb-6">Ready to enter the protocol?</h2>
-                            <p className="text-slate-400 max-w-xl mx-auto mb-10 font-medium leading-relaxed">
+                            <div className="absolute inset-0 bg-fintech-accent/5 pointer-events-none" />
+                            <h2 className="text-3xl md:text-5xl font-bold text-fintech-heading tracking-tight mb-6">Ready to enter the protocol?</h2>
+                            <p className="text-fintech-muted max-w-xl mx-auto mb-10 leading-[1.7]">
                                 Join the network. Mint your identity, build your trust score, and access decentralized capital — all on-chain.
                             </p>
                             <button
@@ -304,20 +303,20 @@ const LandingPage = () => {
                 </section>
             </main>
 
-            <footer className="py-12 md:py-20 px-4 md:px-6 text-center space-y-10 md:space-y-12 border-t border-slate-900/60">
+            <footer className="py-16 md:py-24 px-4 md:px-6 text-center space-y-10 md:space-y-12 border-t border-fintech-border/60">
                 <div className="global-container">
                     <div className="flex items-center justify-center gap-3 mb-8 md:mb-10">
-                        <div className="w-10 h-10 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-center">
-                            <FiShield className="text-white text-base" />
+                        <div className="w-10 h-10 bg-white border border-fintech-border rounded-xl flex items-center justify-center">
+                            <FiShield className="text-fintech-heading text-base" />
                         </div>
-                        <span className="text-xl font-black text-white tracking-widest uppercase">PanCred</span>
+                        <span className="text-xl font-black text-fintech-heading tracking-widest uppercase">PanCred</span>
                     </div>
-                    <div className="flex flex-wrap justify-center gap-6 md:gap-12 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500 mb-8 md:mb-10">
-                        <a href="#" className="hover:text-blue-500 transition-colors">Whitepaper</a>
-                        <a href="#" className="hover:text-blue-500 transition-colors">Protocol Status</a>
-                        <a href="#" className="hover:text-blue-500 transition-colors">Privacy</a>
+                    <div className="flex flex-wrap justify-center gap-6 md:gap-12 text-xs font-semibold uppercase tracking-wide text-fintech-muted mb-8 md:mb-10">
+                        <a href="#" className="hover:text-fintech-accent transition-colors">Whitepaper</a>
+                        <a href="#" className="hover:text-fintech-accent transition-colors">Protocol Status</a>
+                        <a href="#" className="hover:text-fintech-accent transition-colors">Privacy</a>
                     </div>
-                    <p className="text-slate-700 text-[9px] md:text-[10px] font-medium uppercase tracking-[0.2em] max-w-xs mx-auto md:max-w-none">© 2026 PanCred Finance. Build with conviction.</p>
+                    <p className="text-fintech-muted text-xs font-medium uppercase tracking-[0.2em] max-w-xs mx-auto md:max-w-none">© 2026 PanCred Finance. Build with conviction.</p>
                 </div>
             </footer>
         </div>

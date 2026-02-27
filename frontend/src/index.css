@@ -1,44 +1,52 @@
 @import "tailwindcss";
 
 @theme {
-  --color-fintech-dark: #020617;
-  /* Slasher ink dark */
-  --color-fintech-surface: #0f172a;
-  --color-fintech-card: #1e293b;
-  --color-fintech-accent: #2563eb;
-  /* Stronger blue */
-  --color-fintech-success: #10b981;
-  --color-fintech-warning: #f59e0b;
-  --color-fintech-border: #1e293b;
-  --color-fintech-muted: #64748b;
+  /* ── Locked Light Design System ─────────────────────────── */
+  --color-fintech-dark: #F2FBFA;
+  /* Page background */
+  --color-fintech-surface: #FFFFFF;
+  /* Card background */
+  --color-fintech-card: #FFFFFF;
+  --color-fintech-accent: #2EC4B6;
+  /* Primary teal */
+  --color-fintech-success: #16A34A;
+  --color-fintech-warning: #D97706;
+  --color-fintech-border: #DCEEEF;
+  --color-fintech-muted: #475569;
+  --color-fintech-heading: #1F3F4C;
+
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 
-  --shadow-premium: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-premium-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-premium: 0 8px 24px rgba(46, 196, 182, 0.12);
+  --shadow-premium-xl: 0 8px 32px rgba(46, 196, 182, 0.20);
 }
 
 @layer base {
   html {
     scroll-behavior: smooth;
-    font-size: 14px;
-    /* Mobile base */
-  }
-
-  @media (min-width: 1024px) {
-    html {
-      font-size: 16px;
-      /* Desktop base */
-    }
+    font-size: 16px;
   }
 
   body {
-    background-color: var(--color-fintech-dark);
-    color: #f1f5f9;
-    /* slate-100 */
-    font-family: var(--font-sans);
-    line-height: 1.6;
+    background-color: #F2FBFA;
+    color: #475569;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    line-height: 1.65;
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
+  }
+
+  /* Accessibility: all interactive buttons meet 44px tap target */
+  button,
+  a.btn-primary {
+    min-height: 44px;
+  }
+
+  /* Accessibility: body paragraph text floor at 16px */
+  p,
+  li,
+  span:not(.stat-badge) {
+    font-size: inherit;
   }
 
   h1 {
@@ -59,9 +67,9 @@
   h4,
   h5,
   h6 {
-    font-weight: 900;
-    letter-spacing: -0.04em;
-    color: #ffffff;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: #1F3F4C;
   }
 }
 
@@ -71,25 +79,77 @@
   }
 
   .premium-card {
-    @apply bg-fintech-surface border border-fintech-border rounded-xl shadow-premium p-5 md:p-6 lg:p-8 transition-all duration-300;
+    background: #FFFFFF;
+    border: 1px solid #DCEEEF;
+    border-radius: 12px;
+    padding: 32px;
+    box-shadow: 0 2px 12px rgba(46, 196, 182, 0.08);
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
   }
 
   .premium-card:hover {
-    @apply border-fintech-accent/30 shadow-premium-xl;
+    box-shadow: 0 4px 24px rgba(46, 196, 182, 0.15);
+    border-color: #2EC4B6;
   }
 
   .btn-primary {
-    @apply bg-fintech-accent hover:bg-blue-700 text-white font-black uppercase tracking-widest text-[10px] py-4 px-6 rounded-xl transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 flex items-center justify-center gap-2;
+    background: #2EC4B6;
+    color: #ffffff;
+    font-family: 'Inter', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 10px;
+    border: none;
+    padding: 12px 24px;
     min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.1s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .btn-primary:hover {
+    background: #25a99d;
+  }
+
+  .btn-primary:active {
+    transform: scale(0.98);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .sidebar-link {
-    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:text-white hover:bg-slate-800 transition-all duration-200 text-sm font-bold;
+    @apply flex items-center gap-3 px-4 py-3.5 rounded-xl text-fintech-muted hover:text-fintech-heading hover:bg-fintech-dark transition-all duration-200 text-sm font-semibold;
   }
 
   .sidebar-link.active {
-    @apply bg-blue-600/10 text-blue-500 border border-blue-500/20;
-    box-shadow: 0 0 20px rgba(37, 99, 235, 0.1);
+    background: rgba(46, 196, 182, 0.1);
+    color: #2EC4B6;
+    border: 1px solid rgba(46, 196, 182, 0.25);
+    font-weight: 700;
+  }
+
+  /* Financial number — dominant display for key values */
+  .stat-number {
+    font-family: 'Inter', sans-serif;
+    font-size: 2.25rem;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    color: #1F3F4C;
+  }
+
+  @media (min-width: 768px) {
+    .stat-number {
+      font-size: 3rem;
+    }
   }
 }
 
@@ -99,34 +159,34 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-fintech-dark);
+  background: #F2FBFA;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-fintech-border);
+  background: #DCEEEF;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-fintech-muted);
+  background: #2EC4B6;
 }
 
-/* ── AWS Amplify FaceLivenessDetector — dark theme overrides ─────────────── */
+/* ── AWS Amplify FaceLivenessDetector — light theme overrides ─────────────── */
 .liveness-dark-wrapper {
-  --amplify-colors-background-primary: #0a0f1e;
-  --amplify-colors-background-secondary: #0f172a;
-  --amplify-colors-background-tertiary: #1e293b;
-  --amplify-colors-border-primary: rgba(255,255,255,0.08);
-  --amplify-colors-border-secondary: rgba(255,255,255,0.05);
-  --amplify-colors-font-primary: #f1f5f9;
-  --amplify-colors-font-secondary: #94a3b8;
+  --amplify-colors-background-primary: #F2FBFA;
+  --amplify-colors-background-secondary: #FFFFFF;
+  --amplify-colors-background-tertiary: #DCEEEF;
+  --amplify-colors-border-primary: #DCEEEF;
+  --amplify-colors-border-secondary: rgba(0, 0, 0, 0.08);
+  --amplify-colors-font-primary: #1F3F4C;
+  --amplify-colors-font-secondary: #475569;
   --amplify-colors-font-tertiary: #64748b;
-  --amplify-colors-brand-primary-10: rgba(37,99,235,0.1);
-  --amplify-colors-brand-primary-80: #2563eb;
-  --amplify-colors-brand-primary-90: #1d4ed8;
-  --amplify-colors-brand-primary-100: #1e40af;
-  --amplify-components-button-primary-background-color: #2563eb;
-  --amplify-components-button-primary-hover-background-color: #1d4ed8;
+  --amplify-colors-brand-primary-10: rgba(46, 196, 182, 0.1);
+  --amplify-colors-brand-primary-80: #2EC4B6;
+  --amplify-colors-brand-primary-90: #25a99d;
+  --amplify-colors-brand-primary-100: #1d8f84;
+  --amplify-components-button-primary-background-color: #2EC4B6;
+  --amplify-components-button-primary-hover-background-color: #25a99d;
   --amplify-components-button-primary-color: #ffffff;
 }
 
@@ -135,57 +195,54 @@
 }
 
 .liveness-dark-wrapper .amplify-liveness-start-screen {
-  background: #0f172a !important;
-  border: 1px solid rgba(255,255,255,0.08) !important;
+  background: #FFFFFF !important;
+  border: 1px solid #DCEEEF !important;
   border-radius: 16px !important;
 }
 
 .liveness-dark-wrapper .amplify-liveness-start-screen__header,
 .liveness-dark-wrapper .amplify-liveness-start-screen__body {
   background: transparent !important;
-  color: #f1f5f9 !important;
+  color: #1F3F4C !important;
 }
 
 .liveness-dark-wrapper .amplify-liveness-toast {
-  background: #1e293b !important;
-  border: 1px solid rgba(255,255,255,0.1) !important;
+  background: #FFFFFF !important;
+  border: 1px solid #DCEEEF !important;
   border-radius: 12px !important;
-  color: #f1f5f9 !important;
-  backdrop-filter: blur(20px);
+  color: #1F3F4C !important;
 }
 
 .liveness-dark-wrapper .amplify-liveness-toast__header {
-  color: #f1f5f9 !important;
+  color: #1F3F4C !important;
   font-weight: 700 !important;
 }
 
 .liveness-dark-wrapper .amplify-liveness-toast__message {
-  color: #94a3b8 !important;
+  color: #475569 !important;
 }
 
 .liveness-dark-wrapper button[data-variation="primary"] {
-  background: linear-gradient(135deg, #2563eb, #4f46e5) !important;
+  background: #2EC4B6 !important;
   border: none !important;
-  border-radius: 12px !important;
-  font-weight: 800 !important;
+  border-radius: 10px !important;
+  font-weight: 600 !important;
   letter-spacing: 0.08em !important;
   text-transform: uppercase !important;
-  font-size: 0.75rem !important;
+  font-size: 1rem !important;
   padding: 0.85rem 2rem !important;
-  box-shadow: 0 4px 20px rgba(37,99,235,0.4) !important;
+  min-height: 44px !important;
   transition: all 0.2s !important;
 }
 
 .liveness-dark-wrapper button[data-variation="primary"]:hover {
-  background: linear-gradient(135deg, #1d4ed8, #4338ca) !important;
-  box-shadow: 0 4px 24px rgba(37,99,235,0.6) !important;
+  background: #25a99d !important;
 }
 
 .liveness-dark-wrapper .amplify-liveness-camera-module {
   border-radius: 16px !important;
   overflow: hidden !important;
-  border: 1px solid rgba(255,255,255,0.08) !important;
-  /* Make the camera module significantly larger */
+  border: 1px solid #DCEEEF !important;
   min-height: 50vh !important;
 }
 

@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -15,8 +15,8 @@ const HowItWorks = () => {
             icon: <FiUser />,
             step: "01",
             title: "Identity Layer — Sign Up & KYC",
-            color: "text-blue-500",
-            bg: "bg-blue-500/10",
+            color: "text-fintech-accent",
+            bg: "bg-fintech-accent/10",
             border: "border-l-blue-500/40",
             points: [
                 "Register with email and password",
@@ -140,7 +140,7 @@ const HowItWorks = () => {
     ];
 
     const trustEvents = [
-        { event: "NFT Minted", who: "Both", pts: "+300", color: "text-blue-400" },
+        { event: "NFT Minted", who: "Both", pts: "+300", color: "text-fintech-accent" },
         { event: "First loan funded", who: "Lender", pts: "+50", color: "text-emerald-400" },
         { event: "Subsequent loans funded", who: "Lender", pts: "+10", color: "text-emerald-400" },
         { event: "First repayment", who: "Borrower", pts: "+100", color: "text-purple-400" },
@@ -155,9 +155,9 @@ const HowItWorks = () => {
         >
             {/* Header */}
             <div className="text-center space-y-4 pt-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-600">Protocol Documentation</p>
-                <h1 className="text-4xl md:text-5xl font-black text-white italic tracking-tighter">How PanCred Works</h1>
-                <p className="text-slate-400 max-w-2xl mx-auto text-sm leading-relaxed font-medium">
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-fintech-muted">Protocol Documentation</p>
+                <h1 className="text-4xl md:text-5xl font-black text-fintech-heading italic tracking-tighter">How PanCred Works</h1>
+                <p className="text-fintech-muted max-w-2xl mx-auto text-sm leading-relaxed font-medium">
                     A complete walkthrough of every layer — from identity verification to on-chain repayments and dynamic insurance — built and deployed on Ethereum Sepolia.
                 </p>
             </div>
@@ -181,10 +181,10 @@ const HowItWorks = () => {
                                 <div className="flex items-center gap-3 mb-2">
                                     <span className={`text-[9px] font-black uppercase tracking-[0.3em] ${section.color}`}>Step {section.step}</span>
                                 </div>
-                                <h3 className="text-xl md:text-2xl font-black text-white italic tracking-tight mb-4">{section.title}</h3>
+                                <h3 className="text-xl md:text-2xl font-black text-fintech-heading italic tracking-tight mb-4">{section.title}</h3>
                                 <ul className="space-y-2">
                                     {section.points.map((point, pi) => (
-                                        <li key={pi} className={`flex items-start gap-2 text-sm ${point.startsWith('→') ? 'text-slate-300 ml-4' : 'text-slate-400'} font-medium leading-relaxed`}>
+                                        <li key={pi} className={`flex items-start gap-2 text-sm ${point.startsWith('→') ? 'text-fintech-heading ml-4' : 'text-fintech-muted'} font-medium leading-relaxed`}>
                                             {!point.startsWith('→') && <FiCheckCircle className={`${section.color} flex-shrink-0 mt-0.5`} size={12} />}
                                             <span>{point}</span>
                                         </li>
@@ -208,29 +208,29 @@ const HowItWorks = () => {
                         <FiActivity />
                     </div>
                     <div>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-600">On-chain Registry</p>
-                        <h3 className="text-xl font-black text-white italic">Trust Score Events</h3>
+                        <p className="text-[9px] font-semibold uppercase tracking-wide text-fintech-muted">On-chain Registry</p>
+                        <h3 className="text-xl font-black text-fintech-heading italic">Trust Score Events</h3>
                     </div>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                         <thead>
-                            <tr className="border-b border-slate-900">
-                                <th className="text-left text-[9px] font-black uppercase tracking-widest text-slate-600 pb-3">Event</th>
-                                <th className="text-left text-[9px] font-black uppercase tracking-widest text-slate-600 pb-3">Who</th>
-                                <th className="text-right text-[9px] font-black uppercase tracking-widest text-slate-600 pb-3">Points</th>
+                            <tr className="border-b border-fintech-border">
+                                <th className="text-left text-[9px] font-semibold uppercase tracking-wide text-fintech-muted pb-3">Event</th>
+                                <th className="text-left text-[9px] font-semibold uppercase tracking-wide text-fintech-muted pb-3">Who</th>
+                                <th className="text-right text-[9px] font-semibold uppercase tracking-wide text-fintech-muted pb-3">Points</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-900/50">
                             {trustEvents.map((e, i) => (
-                                <tr key={i} className="group hover:bg-slate-900/30 transition-colors">
-                                    <td className="py-3 font-medium text-slate-300">{e.event}</td>
-                                    <td className="py-3 text-slate-500 font-medium">{e.who}</td>
+                                <tr key={i} className="group hover:bg-fintech-dark/30 transition-colors">
+                                    <td className="py-3 font-medium text-fintech-heading">{e.event}</td>
+                                    <td className="py-3 text-fintech-muted font-medium">{e.who}</td>
                                     <td className={`py-3 text-right font-black italic ${e.color}`}>{e.pts}</td>
                                 </tr>
                             ))}
-                            <tr className="border-t border-slate-800">
-                                <td colSpan={3} className="pt-4 text-[10px] text-slate-600 font-black uppercase tracking-widest">Max Score: 1000 pts · Capped per TrustScoreRegistry.sol</td>
+                            <tr className="border-t border-fintech-border">
+                                <td colSpan={3} className="pt-4 text-[10px] text-fintech-muted font-semibold uppercase tracking-wide">Max Score: 1000 pts · Capped per TrustScoreRegistry.sol</td>
                             </tr>
                         </tbody>
                     </table>
@@ -246,7 +246,7 @@ const HowItWorks = () => {
             >
                 {[
                     { tier: "Bronze Pilot", range: "0 – 99 pts", color: "text-amber-600", bg: "bg-amber-600/10", border: "border-amber-600/20", icon: <FiShield /> },
-                    { tier: "Silver Verified", range: "100 – 299 pts", color: "text-slate-300", bg: "bg-slate-400/10", border: "border-slate-400/20", icon: <FiAward /> },
+                    { tier: "Silver Verified", range: "100 – 299 pts", color: "text-fintech-heading", bg: "bg-slate-400/10", border: "border-slate-400/20", icon: <FiAward /> },
                     { tier: "Gold Elite", range: "300+ pts", color: "text-yellow-400", bg: "bg-yellow-400/10", border: "border-yellow-400/20", icon: <FiStar /> },
                 ].map((t, i) => (
                     <div key={i} className={`premium-card border ${t.border} text-center`}>
@@ -254,15 +254,15 @@ const HowItWorks = () => {
                             {t.icon}
                         </div>
                         <p className={`text-sm font-black italic ${t.color}`}>{t.tier}</p>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-600 mt-1">{t.range}</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-fintech-muted mt-1">{t.range}</p>
                     </div>
                 ))}
             </motion.div>
 
             {/* CTA */}
-            <div className="bg-gradient-to-br from-blue-600/20 via-slate-900 to-indigo-700/10 border border-blue-600/20 rounded-3xl p-10 text-white text-center shadow-xl">
+            <div className="bg-gradient-to-br from-blue-600/20 via-slate-900 to-indigo-700/10 border border-fintech-accent/20 rounded-3xl p-10 text-fintech-heading text-center shadow-xl">
                 <h2 className="text-2xl md:text-3xl font-black italic tracking-tight mb-4">Ready to start your journey?</h2>
-                <p className="text-slate-400 mb-8 max-w-xl mx-auto font-medium text-sm leading-relaxed">
+                <p className="text-fintech-muted mb-8 max-w-xl mx-auto font-medium text-sm leading-relaxed">
                     Join a growing network of verified participants. Mint your identity, build your trust score, and access decentralized capital — fully on-chain.
                 </p>
                 <button

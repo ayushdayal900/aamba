@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAccount, useWalletClient } from 'wagmi';
 import { ethers } from 'ethers';
@@ -25,25 +25,25 @@ const TrustScoreBanner = ({ trustScore, completedLoans }) => {
 
     const getTier = (score) => {
         if (score >= 850) return { label: 'Prime', color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' };
-        if (score >= 700) return { label: 'Trusted', color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/20' };
+        if (score >= 700) return { label: 'Trusted', color: 'text-fintech-accent', bg: 'bg-fintech-accent/10 border-fintech-accent/20' };
         if (score >= 500) return { label: 'Building Credit', color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/20' };
-        return { label: 'New Borrower', color: 'text-slate-400', bg: 'bg-slate-800/50 border-slate-700/30' };
+        return { label: 'New Borrower', color: 'text-fintech-muted', bg: 'bg-fintech-dark/50 border-fintech-border/30' };
     };
 
     const tier = getTier(trustScore);
 
     return (
-        <div className="premium-card !p-6 md:!p-8 border-l-4 border-l-blue-500/50 mb-8">
+        <div className="premium-card !p-8 md:!p-8 border-l-4 border-l-blue-500/50 mb-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-500 shrink-0">
+                    <div className="w-14 h-14 bg-fintech-accent/10 rounded-2xl flex items-center justify-center text-fintech-accent shrink-0">
                         <FiAward size={24} />
                     </div>
                     <div>
-                        <p className="text-[9px] uppercase font-black text-slate-500 tracking-widest mb-1">Trust Score</p>
+                        <p className="text-[9px] uppercase font-black text-fintech-muted tracking-widest mb-1">Trust Score</p>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-4xl font-black text-white italic tracking-tighter">{trustScore}</span>
-                            <span className={`text-xs font-black uppercase tracking-widest px-2 py-0.5 rounded-md border ${tier.bg} ${tier.color}`}>
+                            <span className="text-4xl font-bold text-fintech-heading tracking-tight">{trustScore}</span>
+                            <span className={`text-xs font-semibold uppercase tracking-wide px-2 py-0.5 rounded-md border ${tier.bg} ${tier.color}`}>
                                 {tier.label}
                             </span>
                         </div>
@@ -52,10 +52,10 @@ const TrustScoreBanner = ({ trustScore, completedLoans }) => {
 
                 <div className="flex-1 max-w-xs">
                     <div className="flex justify-between items-center mb-2">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">ETH Unlock Progress</p>
-                        <p className="text-[9px] font-black text-slate-400">{trustScore} / {ETH_THRESHOLD}</p>
+                        <p className="text-[9px] font-semibold uppercase tracking-wide text-fintech-muted">ETH Unlock Progress</p>
+                        <p className="text-[9px] font-black text-fintech-muted">{trustScore} / {ETH_THRESHOLD}</p>
                     </div>
-                    <div className="h-2 bg-slate-900 rounded-full overflow-hidden">
+                    <div className="h-2 bg-fintech-dark rounded-full overflow-hidden">
                         <div
                             className="h-full rounded-full transition-all duration-700"
                             style={{
@@ -67,16 +67,16 @@ const TrustScoreBanner = ({ trustScore, completedLoans }) => {
                         />
                     </div>
                     <div className="flex justify-between mt-1.5">
-                        <span className="text-[8px] text-slate-600 font-bold">300</span>
-                        <span className={`text-[8px] font-bold ${isEligible ? 'text-emerald-500' : 'text-blue-500'}`}>
+                        <span className="text-[8px] text-fintech-muted font-bold">300</span>
+                        <span className={`text-[8px] font-bold ${isEligible ? 'text-emerald-500' : 'text-fintech-accent'}`}>
                             {isEligible ? '🔓 ETH Unlocked' : `${ETH_THRESHOLD} — Unlock ETH`}
                         </span>
                     </div>
                 </div>
 
                 <div className="text-right">
-                    <p className="text-[9px] uppercase font-black text-slate-500 tracking-widest mb-1">Completed Loans</p>
-                    <p className="text-2xl font-black text-white italic tracking-tighter">{completedLoans}</p>
+                    <p className="text-[9px] uppercase font-black text-fintech-muted tracking-widest mb-1">Completed Loans</p>
+                    <p className="text-2xl font-bold text-fintech-heading">{completedLoans}</p>
                 </div>
             </div>
         </div>
@@ -200,12 +200,12 @@ const LoanRequestForm = ({ walletAddress, walletClient, userProfile, trustScore,
     return (
         <div className="premium-card !p-8 md:!p-10 border-l-4 border-l-blue-500/50">
             <div className="flex items-center gap-3 mb-8">
-                <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-500">
+                <div className="w-10 h-10 bg-fintech-accent/10 rounded-xl flex items-center justify-center text-fintech-accent">
                     <FiSend size={18} />
                 </div>
                 <div>
-                    <h3 className="text-lg font-black text-white italic tracking-tight">Post Loan Request</h3>
-                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Published on-chain · Visible to all lenders</p>
+                    <h3 className="text-lg font-black text-fintech-heading italic tracking-tight">Post Loan Request</h3>
+                    <p className="text-[10px] text-fintech-muted font-semibold uppercase tracking-wide">Published on-chain · Visible to all lenders</p>
                 </div>
             </div>
 
@@ -213,7 +213,7 @@ const LoanRequestForm = ({ walletAddress, walletClient, userProfile, trustScore,
                 <div className="flex items-center gap-3 bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 mb-6">
                     <FiAlertCircle className="text-amber-500 shrink-0" />
                     <p className="text-[11px] text-amber-400 font-bold">
-                        Factory not deployed yet. Run: <code className="font-mono bg-slate-900 px-1 rounded">npx hardhat run scripts/deployFactory.js --network sepolia</code>
+                        Factory not deployed yet. Run: <code className="font-mono bg-fintech-dark px-1 rounded">npx hardhat run scripts/deployFactory.js --network sepolia</code>
                     </p>
                 </div>
             )}
@@ -228,12 +228,12 @@ const LoanRequestForm = ({ walletAddress, walletClient, userProfile, trustScore,
             )}
 
             {/* ── Loan Mode Selector ─────────────────────────────────────── */}
-            <div className="flex bg-slate-900 rounded-xl p-1 mb-4 border border-slate-800">
+            <div className="flex bg-fintech-dark rounded-xl p-1 mb-4 border border-fintech-border">
                 {/* ERC20 always available */}
                 <button
                     type="button"
                     onClick={() => setLoanMode(1)}
-                    className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${loanMode === 1 ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}
+                    className={`flex-1 py-3 text-[10px] font-semibold uppercase tracking-wide rounded-lg transition-all ${loanMode === 1 ? 'bg-emerald-600 text-fintech-heading shadow-lg' : 'text-fintech-muted hover:text-fintech-heading hover:bg-fintech-dark'}`}
                 >
                     ERC20 {tokenSymbol !== '...' ? `(${tokenSymbol})` : ''}
                 </button>
@@ -245,8 +245,8 @@ const LoanRequestForm = ({ walletAddress, walletClient, userProfile, trustScore,
                         setLoanMode(0);
                     }}
                     disabled={!canUseEth}
-                    className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1.5
-                        ${loanMode === 0 ? 'bg-blue-600 text-white shadow-lg' : !canUseEth ? 'text-slate-700 cursor-not-allowed' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}
+                    className={`flex-1 py-3 text-[10px] font-semibold uppercase tracking-wide rounded-lg transition-all flex items-center justify-center gap-1.5
+                        ${loanMode === 0 ? 'bg-fintech-accent text-fintech-heading shadow-lg' : !canUseEth ? 'text-fintech-muted cursor-not-allowed' : 'text-fintech-muted hover:text-fintech-heading hover:bg-fintech-dark'}`}
                 >
                     {canUseEth ? <FiUnlock size={11} /> : <FiLock size={11} />} ETH
                 </button>
@@ -254,19 +254,19 @@ const LoanRequestForm = ({ walletAddress, walletClient, userProfile, trustScore,
 
             {/* ── ETH Lock Explanation ───────────────────────────────────── */}
             {!canUseEth && (
-                <div className="flex items-start gap-3 bg-slate-800/50 border border-slate-700/30 rounded-xl px-4 py-3 mb-6">
-                    <FiLock className="text-slate-500 shrink-0 mt-0.5" size={13} />
+                <div className="flex items-start gap-3 bg-fintech-dark/50 border border-fintech-border/30 rounded-xl px-4 py-3 mb-6">
+                    <FiLock className="text-fintech-muted shrink-0 mt-0.5" size={13} />
                     <div>
                         {completedLoans === 0 ? (
-                            <p className="text-[11px] text-slate-400 font-bold leading-relaxed">
+                            <p className="text-[11px] text-fintech-muted font-bold leading-relaxed">
                                 First loan must use <span className="text-emerald-400">ERC20</span> (Autopay mandatory).
                                 Complete your first loan to unlock ETH mode.
                             </p>
                         ) : (
-                            <p className="text-[11px] text-slate-400 font-bold leading-relaxed">
-                                Unlock ETH loans at <span className="text-blue-400">Trust Score 700</span>.
-                                Your current score: <span className="text-white font-black">{trustScore}</span>
-                                {' '}(<span className="text-blue-400">{700 - trustScore} more needed</span>).
+                            <p className="text-[11px] text-fintech-muted font-bold leading-relaxed">
+                                Unlock ETH loans at <span className="text-fintech-accent">Trust Score 700</span>.
+                                Your current score: <span className="text-fintech-heading font-semibold">{trustScore}</span>
+                                {' '}(<span className="text-fintech-accent">{700 - trustScore} more needed</span>).
                             </p>
                         )}
                     </div>
@@ -293,7 +293,7 @@ const LoanRequestForm = ({ walletAddress, walletClient, userProfile, trustScore,
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div>
-                        <label className="block text-[9px] uppercase font-black text-slate-600 tracking-[0.2em] mb-3 px-1">
+                        <label className="block text-[9px] uppercase font-black text-fintech-muted tracking-[0.2em] mb-3 px-1">
                             Principal ({loanMode === 0 ? 'ETH' : tokenSymbol}) — Amount you need
                         </label>
                         <input
@@ -302,12 +302,12 @@ const LoanRequestForm = ({ walletAddress, walletClient, userProfile, trustScore,
                             onChange={e => setPrincipal(e.target.value)}
                             required min="0.000001" step="any"
                             placeholder="0.500"
-                            className={`w-full bg-fintech-dark border border-fintech-border text-white rounded-xl p-4 focus:outline-none transition-all font-mono text-lg shadow-inner ${loanMode === 0 ? 'focus:border-blue-500' : 'focus:border-emerald-500'}`}
+                            className={`w-full bg-white border border-fintech-border text-fintech-heading rounded-xl p-4 focus:outline-none transition-all font-mono text-lg shadow-inner ${loanMode === 0 ? 'focus:border-fintech-accent' : 'focus:border-emerald-500'}`}
                         />
                     </div>
 
                     <div>
-                        <label className="block text-[9px] uppercase font-black text-slate-600 tracking-[0.2em] mb-3 px-1">
+                        <label className="block text-[9px] uppercase font-black text-fintech-muted tracking-[0.2em] mb-3 px-1">
                             Total Repayment ({loanMode === 0 ? 'ETH' : tokenSymbol}) — You pay back
                         </label>
                         <input
@@ -316,13 +316,13 @@ const LoanRequestForm = ({ walletAddress, walletClient, userProfile, trustScore,
                             onChange={e => setTotalRepayment(e.target.value)}
                             required min="0.000001" step="any"
                             placeholder="0.600"
-                            className={`w-full bg-fintech-dark border border-fintech-border text-white rounded-xl p-4 focus:outline-none transition-all font-mono text-lg shadow-inner ${loanMode === 0 ? 'focus:border-blue-500' : 'focus:border-emerald-500'}`}
+                            className={`w-full bg-white border border-fintech-border text-fintech-heading rounded-xl p-4 focus:outline-none transition-all font-mono text-lg shadow-inner ${loanMode === 0 ? 'focus:border-fintech-accent' : 'focus:border-emerald-500'}`}
                         />
                     </div>
                 </div>
 
                 <div>
-                    <label className="block text-[9px] uppercase font-black text-slate-600 tracking-[0.2em] mb-3 px-1">
+                    <label className="block text-[9px] uppercase font-black text-fintech-muted tracking-[0.2em] mb-3 px-1">
                         Duration (Months) — 1 to 36
                     </label>
                     <input
@@ -331,33 +331,33 @@ const LoanRequestForm = ({ walletAddress, walletClient, userProfile, trustScore,
                         onChange={e => setDuration(e.target.value)}
                         required min="1" max="36" step="1"
                         placeholder="2"
-                        className="w-full bg-fintech-dark border border-fintech-border text-white rounded-xl p-4 focus:border-blue-500 focus:outline-none transition-all font-black text-lg shadow-inner"
+                        className="w-full bg-white border border-fintech-border text-fintech-heading rounded-xl p-4 focus:border-fintech-accent focus:outline-none transition-all font-black text-lg shadow-inner"
                     />
                 </div>
 
                 {/* Live Preview */}
                 {monthlyPayment && impliedAPR && (
-                    <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-6 grid grid-cols-3 gap-4 text-center">
+                    <div className="bg-fintech-dark/60 border border-fintech-border rounded-2xl p-6 grid grid-cols-3 gap-4 text-center">
                         <div>
-                            <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">Monthly</p>
-                            <p className="text-white font-black italic text-lg">{monthlyPayment} <span className="text-slate-500 text-xs not-italic">{loanMode === 0 ? 'ETH' : tokenSymbol}</span></p>
+                            <p className="text-[9px] text-fintech-muted font-semibold uppercase tracking-wide mb-1">Monthly</p>
+                            <p className="text-fintech-heading font-semibold italic text-lg">{monthlyPayment} <span className="text-fintech-muted text-xs not-italic">{loanMode === 0 ? 'ETH' : tokenSymbol}</span></p>
                         </div>
                         <div>
-                            <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">Implied APR</p>
-                            <p className="text-blue-400 font-black italic text-lg">{impliedAPR}%</p>
+                            <p className="text-[9px] text-fintech-muted font-semibold uppercase tracking-wide mb-1">Implied APR</p>
+                            <p className="text-fintech-accent font-bold text-lg">{impliedAPR}%</p>
                         </div>
                         <div>
-                            <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">Insurance</p>
-                            <p className="text-amber-400 font-black italic text-lg">0.01 <span className="text-slate-500 text-xs not-italic">{loanMode === 0 ? 'ETH' : tokenSymbol}</span></p>
+                            <p className="text-[9px] text-fintech-muted font-semibold uppercase tracking-wide mb-1">Insurance</p>
+                            <p className="text-amber-400 font-bold text-lg">0.01 <span className="text-fintech-muted text-xs not-italic">{loanMode === 0 ? 'ETH' : tokenSymbol}</span></p>
                         </div>
                     </div>
                 )}
 
-                <div className="bg-slate-950/40 border border-slate-900 rounded-xl px-4 py-3 flex items-start gap-3">
-                    <FiInfo className="text-slate-500 shrink-0 mt-0.5" size={13} />
-                    <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+                <div className="bg-fintech-dark/40 border border-fintech-border rounded-xl px-4 py-3 flex items-start gap-3">
+                    <FiInfo className="text-fintech-muted shrink-0 mt-0.5" size={13} />
+                    <p className="text-[10px] text-fintech-muted font-medium leading-relaxed">
                         Once a lender funds your request, a smart contract is deployed and principal is transferred to your wallet instantly.
-                        A total of <strong className="text-slate-400">0.01 {loanMode === 0 ? 'ETH' : tokenSymbol} insurance fee</strong> is distributed to the protocol treasury across your installments.
+                        A total of <strong className="text-fintech-muted">0.01 {loanMode === 0 ? 'ETH' : tokenSymbol} insurance fee</strong> is distributed to the protocol treasury across your installments.
                     </p>
                 </div>
 
@@ -439,44 +439,44 @@ const Borrow = () => {
         <div className="space-y-8 md:space-y-12">
             <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
                 <div>
-                    <h1 className="text-3xl md:text-4xl font-black text-white italic tracking-tighter flex items-center gap-3">
-                        <FiTrendingUp className="text-blue-500" /> Borrow Capital
+                    <h1 className="text-3xl md:text-4xl font-bold text-fintech-heading tracking-tight flex items-center gap-3">
+                        <FiTrendingUp className="text-fintech-accent" /> Borrow Capital
                     </h1>
-                    <p className="text-sm md:text-base text-slate-500 font-medium italic">Post a loan request — lenders fund directly to your wallet.</p>
+                    <p className="text-sm md:text-base text-fintech-muted font-medium italic">Post a loan request — lenders fund directly to your wallet.</p>
                 </div>
             </header>
 
             {/* Checking */}
             {checking && (
-                <div className="premium-card !p-12 flex flex-col items-center justify-center gap-4 text-slate-500">
-                    <FiLoader size={32} className="animate-spin text-blue-500" />
-                    <p className="text-[11px] font-black uppercase tracking-widest">Verifying identity on-chain...</p>
+                <div className="premium-card !p-12 flex flex-col items-center justify-center gap-4 text-fintech-muted">
+                    <FiLoader size={32} className="animate-spin text-fintech-accent" />
+                    <p className="text-[11px] font-semibold uppercase tracking-wide">Verifying identity on-chain...</p>
                 </div>
             )}
 
             {/* Not verified */}
             {!checking && !isVerified && (
                 <div className="premium-card !p-8 md:!p-12 border-l-4 border-l-blue-600/50">
-                    <p className="text-base md:text-xl text-slate-400 mb-10 font-medium leading-relaxed max-w-2xl">
+                    <p className="text-base md:text-xl text-fintech-muted mb-10 font-medium leading-relaxed max-w-2xl">
                         Access liquidity instantly using your on-chain protocol reputation score. No centralized credit checks, no hidden fees.
                     </p>
 
-                    <div className="bg-slate-950/50 border-2 border-dashed border-slate-900 p-8 md:p-10 rounded-[2.5rem] mt-8">
+                    <div className="bg-fintech-dark/50 border-2 border-dashed border-fintech-border p-8 md:p-10 rounded-[2.5rem] mt-8">
                         <div className="flex flex-col md:flex-row md:items-center gap-8 md:gap-10">
-                            <div className="w-16 h-16 md:w-20 md:h-20 bg-blue-600/10 rounded-3xl flex items-center justify-center text-blue-500 shadow-lg">
+                            <div className="w-16 h-16 md:w-20 md:h-20 bg-fintech-accent/10 rounded-3xl flex items-center justify-center text-fintech-accent shadow-lg">
                                 <FiShield size={40} />
                             </div>
                             <div className="flex-1 space-y-2">
-                                <h3 className="text-xl md:text-2xl font-black text-white italic tracking-tight">Initialize Credit Profile</h3>
-                                <p className="text-slate-500 text-sm md:text-base leading-relaxed font-medium">
+                                <h3 className="text-xl md:text-2xl font-black text-fintech-heading italic tracking-tight">Initialize Credit Profile</h3>
+                                <p className="text-fintech-muted text-sm md:text-base leading-relaxed font-medium">
                                     Before posting a decentralized loan request, you must verify your identity and mint a non-transferable Soulbound Identity NFT.
                                 </p>
                             </div>
                         </div>
-                        <div className="mt-10 pt-10 border-t border-slate-900 flex justify-end">
+                        <div className="mt-10 pt-10 border-t border-fintech-border flex justify-end">
                             <button
                                 onClick={() => navigate('/onboarding')}
-                                className="btn-primary w-full md:w-auto px-10 !py-4 text-[10px] md:text-xs font-black uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-blue-500/10"
+                                className="btn-primary w-full md:w-auto px-10 !py-4 text-sm font-semibold uppercase tracking-wide flex items-center justify-center gap-3"
                             >
                                 Get Verified &amp; Mint NFT <FiArrowRight size={18} />
                             </button>
@@ -490,7 +490,7 @@ const Borrow = () => {
                 <div className="space-y-8">
                     <div className="flex items-center gap-3 bg-emerald-500/5 border border-emerald-500/20 px-5 py-3 rounded-2xl w-fit">
                         <FiCheckCircle className="text-emerald-500" size={16} />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Identity Verified — Credit Profile Active</span>
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-emerald-500">Identity Verified — Credit Profile Active</span>
                     </div>
 
                     {/* Trust Score Banner */}

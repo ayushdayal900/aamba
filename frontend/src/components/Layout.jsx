@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import Sidebar from './Sidebar';
 import { FiMenu, FiX } from 'react-icons/fi';
 
@@ -10,16 +10,16 @@ const Layout = ({ children }) => {
     return (
         <div className="flex min-h-screen bg-fintech-dark font-sans text-slate-100 antialiased relative">
             {/* Mobile Header */}
-            <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-fintech-surface border-b border-fintech-border z-40 flex items-center justify-between px-6">
+            <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-fintech-border z-40 flex items-center justify-between px-6">
                 <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                        <span className="text-white font-black italic text-xs">A</span>
+                    <div className="w-8 h-8 bg-fintech-accent rounded-lg flex items-center justify-center">
+                        <span className="text-fintech-heading font-semibold italic text-xs">A</span>
                     </div>
-                    <span className="text-sm font-black text-white tracking-widest uppercase">PanCred</span>
+                    <span className="text-sm font-black text-fintech-heading tracking-widest uppercase">PanCred</span>
                 </div>
                 <button
                     onClick={toggleMobileMenu}
-                    className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+                    className="w-10 h-10 flex items-center justify-center text-fintech-muted hover:text-fintech-heading transition-colors"
                 >
                     {isMobileMenuOpen ? <FiX size={24} /> : <FiMenu size={24} />}
                 </button>

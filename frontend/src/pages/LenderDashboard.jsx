@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useAuth, api } from '../context/AuthContext';
 import { ethers } from 'ethers';
 import { useAccount, useConfig, useWalletClient } from 'wagmi';
@@ -447,20 +447,20 @@ const LenderDashboard = () => {
         <div className="space-y-8 md:space-y-12">
             <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
                 <div>
-                    <h1 className="text-3xl md:text-4xl font-black text-white italic tracking-tighter flex items-center gap-3">
-                        <FiGlobe className="text-blue-500" /> Marketplace
+                    <h1 className="text-3xl md:text-4xl font-bold text-fintech-heading tracking-tight flex items-center gap-3">
+                        <FiGlobe className="text-fintech-accent" /> Marketplace
                     </h1>
-                    <p className="text-sm md:text-base text-slate-500 font-medium italic">Deploy capital into verified, peer-to-peer overcollateralized loans.</p>
+                    <p className="text-sm md:text-base text-fintech-muted font-medium italic">Deploy capital into verified, peer-to-peer overcollateralized loans.</p>
                 </div>
                 <div className="flex flex-col md:flex-row items-end gap-4">
                     <div className="flex flex-col items-end">
-                        <span className="text-[10px] uppercase font-black tracking-widest text-slate-500 mb-1">Available Capital</span>
+                        <span className="text-xs uppercase font-black tracking-widest text-fintech-muted mb-1">Available Capital</span>
                         <div className="flex items-center gap-2">
                             <span className="bg-emerald-500/10 text-emerald-500 text-xs px-2 py-1 rounded font-black border border-emerald-500/20">{tUSDTBalance} tUSDT</span>
                             <button
                                 onClick={handleClaimFaucet}
                                 disabled={claimingFaucet}
-                                className="text-[9px] font-black uppercase tracking-widest text-blue-400 hover:text-white transition-all bg-blue-900/30 hover:bg-blue-800 border border-blue-800/50 px-3 py-1.5 rounded-lg active:scale-95 disabled:opacity-50"
+                                className="text-[9px] font-semibold uppercase tracking-wide text-fintech-accent hover:text-fintech-heading transition-all bg-blue-900/30 hover:bg-blue-800 border border-blue-800/50 px-3 py-1.5 rounded-lg active:scale-95 disabled:opacity-50"
                             >
                                 {claimingFaucet ? 'Claiming...' : 'Claim 1000 tUSDT (Test Faucet)'}
                             </button>
@@ -468,7 +468,7 @@ const LenderDashboard = () => {
                     </div>
                     <button
                         onClick={fetchLoans}
-                        className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all bg-slate-900/50 hover:bg-slate-800 border border-slate-800 px-5 py-3 rounded-xl shadow-lg active:scale-95"
+                        className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-fintech-muted hover:text-fintech-heading transition-all bg-fintech-dark/50 hover:bg-white border border-fintech-border px-5 py-3 rounded-xl shadow-lg active:scale-95"
                     >
                         <FiSearch className={loading ? 'animate-spin' : ''} />
                         Sync Protocol
@@ -479,9 +479,9 @@ const LenderDashboard = () => {
             {/* ── Identity Status Pill Bar ── */}
             <div className="flex flex-wrap items-center gap-3">
                 {identityChecking ? (
-                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800/60 border border-slate-700/50">
-                        <FiLoader size={12} className="text-slate-400 animate-spin" />
-                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Verifying Identity...</span>
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-fintech-dark/60 border border-fintech-border/50">
+                        <FiLoader size={12} className="text-fintech-muted animate-spin" />
+                        <span className="text-xs font-semibold uppercase tracking-wide text-fintech-muted">Verifying Identity...</span>
                     </div>
                 ) : hasIdentity ? (
                     <>
@@ -493,31 +493,31 @@ const LenderDashboard = () => {
                             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 shadow-[0_0_12px_rgba(16,185,129,0.08)] hover:bg-emerald-500/20 hover:scale-[1.02] transition-all cursor-pointer"
                         >
                             <FiCheckCircle size={12} className="text-emerald-400" />
-                            <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400">Verified SBT</span>
+                            <span className="text-xs font-semibold uppercase tracking-wide text-emerald-400">Verified SBT</span>
                         </a>
                         {/* Pill 2: Authorized Node — SBT holder = authorized protocol participant */}
                         <a
                             href={`https://sepolia.etherscan.io/address/${walletAddress}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/25 shadow-[0_0_12px_rgba(59,130,246,0.08)] hover:bg-blue-500/20 hover:scale-[1.02] transition-all cursor-pointer"
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-fintech-accent/10 border border-fintech-accent/25 shadow-[0_0_12px_rgba(59,130,246,0.08)] hover:bg-fintech-accent/20 hover:scale-[1.02] transition-all cursor-pointer"
                         >
-                            <FiShield size={12} className="text-blue-400" />
-                            <span className="text-[9px] font-black uppercase tracking-widest text-blue-400">Authorized Node</span>
+                            <FiShield size={12} className="text-fintech-accent" />
+                            <span className="text-[9px] font-semibold uppercase tracking-wide text-fintech-accent">Authorized Node</span>
                         </a>
                     </>
                 ) : (
                     /* Red pill: Not verified */
                     <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/25 shadow-[0_0_12px_rgba(239,68,68,0.08)] transition-all">
                         <FiAlertCircle size={12} className="text-red-400" />
-                        <span className="text-[9px] font-black uppercase tracking-widest text-red-400">Identity Not Verified</span>
+                        <span className="text-[9px] font-semibold uppercase tracking-wide text-red-400">Identity Not Verified</span>
                     </div>
                 )}
                 {/* Network chain indicator */}
                 {chainId && (
-                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800/40 border border-slate-700/30">
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-fintech-dark/40 border border-fintech-border/30">
                         <div className={`w-1.5 h-1.5 rounded-full ${chainId === 11155111 ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
-                        <span className={`text-[9px] font-black uppercase tracking-widest ${chainId === 11155111 ? 'text-slate-400' : 'text-red-400'}`}>
+                        <span className={`text-[9px] font-semibold uppercase tracking-wide ${chainId === 11155111 ? 'text-fintech-muted' : 'text-red-400'}`}>
                             {chainId === 11155111 ? 'Sepolia' : 'Wrong Network'}
                         </span>
                     </div>
@@ -525,27 +525,27 @@ const LenderDashboard = () => {
             </div>
 
             {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 lg:gap-10">
                     {[1, 2, 3].map(i => (
-                        <div key={i} className="premium-card animate-pulse h-96 bg-slate-900/20 rounded-3xl border border-slate-900/50"></div>
+                        <div key={i} className="premium-card animate-pulse h-96 bg-fintech-dark/20 rounded-3xl border border-fintech-border/50"></div>
                     ))}
                 </div>
             ) : loans.length === 0 ? (
-                <div className="premium-card text-center py-20 space-y-6 border-2 border-dashed border-slate-900">
-                    <div className="w-20 h-20 bg-slate-900 rounded-[2.5rem] flex items-center justify-center mx-auto text-slate-700">
+                <div className="premium-card text-center py-20 space-y-6 border-2 border-dashed border-fintech-border">
+                    <div className="w-20 h-20 bg-fintech-dark rounded-[2.5rem] flex items-center justify-center mx-auto text-fintech-muted">
                         <FiInfo size={40} />
                     </div>
-                    <p className="text-slate-500 font-bold italic text-lg">Market is synchronized. No active requests.</p>
+                    <p className="text-fintech-muted font-bold italic text-lg">Market is synchronized. No active requests.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 lg:gap-10">
                     {loans.map((loan) => (
                         <div key={loan._id} className="premium-card !p-8 md:!p-10 flex flex-col justify-between border-l-4 border-l-emerald-600/50 hover:border-l-blue-600 transition-all duration-500 hover:shadow-2xl">
                             <div>
                                 <div className="flex justify-between items-start mb-8">
-                                    <div className="space-y-1">
-                                        <p className="text-[9px] md:text-[10px] uppercase font-black tracking-[0.2em] text-slate-600">Capital Required</p>
-                                        <h3 className="text-3xl md:text-4xl font-black text-white tracking-tighter italic">{loan.amountRequested} <span className="text-sm font-normal text-slate-500 not-italic ml-1">{addresses.mockUSDT ? 'tUSDT' : 'ETH'}</span></h3>
+                                    <div className="space-y-3">
+                                        <p className="text-[9px] md:text-[10px] uppercase font-black tracking-[0.2em] text-fintech-muted">Capital Required</p>
+                                        <h3 className="text-3xl md:text-4xl font-black text-fintech-heading tracking-tighter italic">{loan.amountRequested} <span className="text-sm font-normal text-fintech-muted not-italic ml-1">{addresses.mockUSDT ? 'tUSDT' : 'ETH'}</span></h3>
                                     </div>
                                     <span className="bg-emerald-500/10 text-emerald-500 text-[9px] md:text-[10px] px-3 py-1.5 rounded-lg font-black uppercase tracking-tighter border border-emerald-500/20 shadow-inner">
                                         {loan.interestRate}% APY
@@ -553,46 +553,46 @@ const LenderDashboard = () => {
                                 </div>
 
                                 <div className="space-y-6 mb-10">
-                                    <div className="flex items-center justify-between p-4 bg-fintech-dark rounded-2xl border border-slate-900 shadow-inner">
+                                    <div className="flex items-center justify-between p-4 bg-fintech-dark rounded-2xl border border-fintech-border shadow-inner">
                                         <div className="flex items-center gap-2">
-                                            <FiTrendingUp className="text-blue-500" />
-                                            <span className="text-[9px] uppercase font-black tracking-widest text-slate-500">Trust Index</span>
+                                            <FiTrendingUp className="text-fintech-accent" />
+                                            <span className="text-[9px] uppercase font-black tracking-widest text-fintech-muted">Trust Index</span>
                                         </div>
                                         <div className="flex flex-col items-end gap-1">
-                                            <span className="text-white font-black italic text-lg">{loan.onChainTrustScore}</span>
+                                            <span className="text-fintech-heading font-semibold italic text-lg">{loan.onChainTrustScore}</span>
                                             <div className="flex gap-1.5">
-                                                {loan.onChainTrustScore >= 300 && <span className="bg-blue-500/10 text-blue-500 text-[8px] px-1.5 py-0.5 rounded font-black uppercase tracking-widest shadow-[0_0_10px_rgba(37,99,235,0.1)]">Elite</span>}
-                                                {loan.onChainTrustScore >= 100 && <span className="bg-emerald-500/10 text-emerald-500 text-[8px] px-1.5 py-0.5 rounded font-black uppercase tracking-widest">Verified</span>}
+                                                {loan.onChainTrustScore >= 300 && <span className="bg-fintech-accent/10 text-fintech-accent text-[8px] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide shadow-[0_0_10px_rgba(37,99,235,0.1)]">Elite</span>}
+                                                {loan.onChainTrustScore >= 100 && <span className="bg-emerald-500/10 text-emerald-500 text-[8px] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">Verified</span>}
                                             </div>
                                         </div>
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div className="p-4 bg-fintech-dark rounded-2xl border border-slate-900 shadow-inner">
-                                            <p className="text-[9px] uppercase font-black tracking-widest text-slate-600 mb-2">Interest</p>
-                                            <p className="text-emerald-500 font-black italic text-lg">+{(loan.amountRequested * (loan.interestRate / 100)).toFixed(3)}</p>
+                                        <div className="p-4 bg-fintech-dark rounded-2xl border border-fintech-border shadow-inner">
+                                            <p className="text-[9px] uppercase font-black tracking-widest text-fintech-muted mb-2">Interest</p>
+                                            <p className="text-emerald-500 font-bold text-lg">+{(loan.amountRequested * (loan.interestRate / 100)).toFixed(3)}</p>
                                         </div>
-                                        <div className="p-4 bg-fintech-dark rounded-2xl border border-slate-900 shadow-inner">
-                                            <p className="text-[9px] uppercase font-black tracking-widest text-slate-600 mb-2">Term</p>
-                                            <p className="text-white font-black italic text-lg">{loan.durationMonths}m</p>
+                                        <div className="p-4 bg-fintech-dark rounded-2xl border border-fintech-border shadow-inner">
+                                            <p className="text-[9px] uppercase font-black tracking-widest text-fintech-muted mb-2">Term</p>
+                                            <p className="text-fintech-heading font-semibold italic text-lg">{loan.durationMonths}m</p>
                                         </div>
                                     </div>
 
-                                    <div className="p-5 bg-slate-900/30 rounded-2xl border-2 border-dashed border-slate-800/50">
-                                        <p className="text-[9px] uppercase font-black tracking-widest text-slate-700 mb-3 px-1">Borrower Rationale</p>
-                                        <p className="text-slate-400 text-xs italic line-clamp-2 leading-relaxed font-medium px-1">"{loan.purpose}"</p>
+                                    <div className="p-5 bg-fintech-dark/30 rounded-2xl border-2 border-dashed border-fintech-border/50">
+                                        <p className="text-[9px] uppercase font-black tracking-widest text-fintech-muted mb-3 px-1">Borrower Rationale</p>
+                                        <p className="text-fintech-muted text-xs italic line-clamp-2 leading-relaxed font-medium px-1">"{loan.purpose}"</p>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="space-y-6 pt-6 border-t border-slate-900">
+                            <div className="space-y-6 pt-6 border-t border-fintech-border">
                                 <TransactionAccordion txHash={loan.simulatedSmartContractId ? `Protocol ID: ${loan.simulatedSmartContractId}` : null} />
                                 <button
                                     onClick={() => handleFundLoan(loan._id, loan.simulatedSmartContractId, loan.borrower?.walletAddress, loan.amountRequested, loan.interestRate, loan.durationMonths)}
                                     disabled={actionLoading === loan._id}
                                     className="btn-primary w-full !py-5 text-[10px] md:text-xs font-black uppercase tracking-[0.2em]"
                                 >
-                                    {actionLoading === loan._id ? <FiLoader className="animate-spin inline mr-2 text-white" /> : 'Deploy Capital'}
+                                    {actionLoading === loan._id ? <FiLoader className="animate-spin inline mr-2 text-fintech-heading" /> : 'Deploy Capital'}
                                 </button>
                             </div>
                         </div>
@@ -605,29 +605,29 @@ const LenderDashboard = () => {
                 and "Funded by You" duplicates the Funded Agreements section below. */}
 
             {/* ── Upcoming Receivables Section ── */}
-            <section className="mt-16 pt-16 border-t border-slate-900">
+            <section className="mt-20 pt-20 border-t border-fintech-border">
                 <div className="flex items-center justify-between mb-8">
                     <div>
-                        <h2 className="text-2xl md:text-3xl font-black text-white italic tracking-tighter flex items-center gap-3">
+                        <h2 className="text-2xl md:text-3xl font-bold text-fintech-heading tracking-tight flex items-center gap-3">
                             <FiClock className="text-emerald-500" /> Upcoming Receivables
                         </h2>
-                        <p className="text-xs text-slate-500 font-medium mt-1">Scheduled installments from borrowers across all active agreements.</p>
+                        <p className="text-sm text-fintech-muted font-normal mt-1">Scheduled installments from borrowers across all active agreements.</p>
                     </div>
                     <div className="flex items-center gap-3">
                         {upcomingLoading && <FiLoader className="text-emerald-500 animate-spin" />}
-                        <span className="text-[10px] bg-slate-800 text-slate-400 px-4 py-1.5 rounded-full font-black uppercase tracking-widest">
+                        <span className="text-xs bg-fintech-dark text-fintech-muted px-4 py-2 rounded-full font-medium tracking-wide">
                             {upcomingPayments.length} Active
                         </span>
                     </div>
                 </div>
 
                 {upcomingPayments.length === 0 && !upcomingLoading ? (
-                    <div className="premium-card py-14 text-center space-y-4 border-2 border-dashed border-slate-900">
-                        <div className="w-14 h-14 bg-slate-900 rounded-2xl flex items-center justify-center mx-auto text-slate-700">
+                    <div className="premium-card py-14 text-center space-y-4 border-2 border-dashed border-fintech-border">
+                        <div className="w-14 h-14 bg-fintech-dark rounded-2xl flex items-center justify-center mx-auto text-fintech-muted">
                             <FiClock size={28} />
                         </div>
-                        <p className="text-slate-500 font-bold italic">No upcoming payments.</p>
-                        <p className="text-slate-600 text-sm font-medium">Fund a loan request on the marketplace to start earning installments.</p>
+                        <p className="text-fintech-muted font-bold italic">No upcoming payments.</p>
+                        <p className="text-fintech-muted text-sm font-medium">Fund a loan request on the marketplace to start earning installments.</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -643,7 +643,7 @@ const LenderDashboard = () => {
                             return (
                                 <div
                                     key={payment.loanId}
-                                    className={`premium-card !p-6 border-l-4 transition-all duration-300 hover:shadow-xl ${isOverdue
+                                    className={`premium-card !p-8 border-l-4 transition-all duration-300 hover:shadow-xl ${isOverdue
                                         ? 'border-l-red-500/60'
                                         : daysUntil !== null && daysUntil <= 3
                                             ? 'border-l-amber-500/60'
@@ -653,10 +653,10 @@ const LenderDashboard = () => {
                                     {/* Top row: installment amount + status */}
                                     <div className="flex justify-between items-start mb-5">
                                         <div>
-                                            <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">Installment</p>
-                                            <p className="text-2xl font-black text-white italic tracking-tighter">
+                                            <p className="text-[9px] text-fintech-muted font-semibold uppercase tracking-wide mb-1">Installment</p>
+                                            <p className="text-2xl font-bold text-fintech-heading">
                                                 {Number(payment.installmentAmount).toFixed(4)}
-                                                <span className="text-slate-500 text-xs font-normal not-italic ml-1.5">{payment.loanMode}</span>
+                                                <span className="text-fintech-muted text-xs font-normal not-italic ml-1.5">{payment.loanMode}</span>
                                             </p>
                                         </div>
                                         {/* Overdue / Due Soon / Normal badge */}
@@ -676,35 +676,35 @@ const LenderDashboard = () => {
                                     </div>
 
                                     {/* Details grid */}
-                                    <div className="grid grid-cols-2 gap-3 bg-slate-950/50 rounded-xl p-3 mb-4 border border-slate-900">
+                                    <div className="grid grid-cols-2 gap-3 bg-fintech-dark/50 rounded-xl p-3 mb-4 border border-fintech-border">
                                         <div>
-                                            <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest mb-1">Next Due</p>
-                                            <p className="text-xs font-black text-white">{dueDate}</p>
+                                            <p className="text-[8px] text-fintech-muted font-semibold uppercase tracking-wide mb-1">Next Due</p>
+                                            <p className="text-xs font-black text-fintech-heading">{dueDate}</p>
                                             {daysUntil !== null && (
-                                                <p className={`text-[9px] font-bold mt-0.5 ${isOverdue ? 'text-red-400' : daysUntil <= 3 ? 'text-amber-400' : 'text-slate-500'
+                                                <p className={`text-[9px] font-bold mt-0.5 ${isOverdue ? 'text-red-400' : daysUntil <= 3 ? 'text-amber-400' : 'text-fintech-muted'
                                                     }`}>
                                                     {isOverdue ? `${Math.abs(daysUntil)}d overdue` : daysUntil === 0 ? 'Today' : `in ${daysUntil}d`}
                                                 </p>
                                             )}
                                         </div>
                                         <div>
-                                            <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest mb-1">Borrower</p>
-                                            <p className="text-xs font-mono text-slate-400">
+                                            <p className="text-[8px] text-fintech-muted font-semibold uppercase tracking-wide mb-1">Borrower</p>
+                                            <p className="text-xs font-mono text-fintech-muted">
                                                 {payment.borrowerAddress
                                                     ? `${payment.borrowerAddress.slice(0, 6)}...${payment.borrowerAddress.slice(-4)}`
                                                     : '—'
                                                 }
                                             </p>
-                                            <p className="text-[9px] text-slate-600 font-bold mt-0.5">{payment.remainingPayments} left</p>
+                                            <p className="text-[9px] text-fintech-muted font-bold mt-0.5">{payment.remainingPayments} left</p>
                                         </div>
                                     </div>
 
                                     {/* Mode tag: Autopay or Manual */}
-                                    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest ${payment.autopay
+                                    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[9px] font-semibold uppercase tracking-wide ${payment.autopay
                                         ? 'bg-emerald-500/5 border border-emerald-500/15 text-emerald-400'
-                                        : 'bg-blue-500/5 border border-blue-500/15 text-blue-400'
+                                        : 'bg-fintech-accent/5 border border-fintech-accent/15 text-fintech-accent'
                                         }`}>
-                                        <FiZap size={10} className={payment.autopay ? 'text-emerald-400' : 'text-blue-400'} />
+                                        <FiZap size={10} className={payment.autopay ? 'text-emerald-400' : 'text-fintech-accent'} />
                                         {payment.autopay ? 'Autopay Enabled' : 'Manual Repayment'}
                                         {payment.missedPayments > 0 && (
                                             <span className="ml-auto text-[8px] text-red-400 font-black">{payment.missedPayments} missed</span>
@@ -719,11 +719,11 @@ const LenderDashboard = () => {
 
             {/* ── Factory Funded Agreements (Lender view) ── */}
             {addresses.loanFactory && lenderAgreements.length > 0 && (
-                <section className="mt-16 pt-16 border-t border-slate-900">
+                <section className="mt-20 pt-20 border-t border-fintech-border">
                     <div className="flex items-center justify-between mb-10">
                         <div>
-                            <h2 className="text-2xl md:text-3xl font-black text-white italic tracking-tighter">Funded Agreements</h2>
-                            <p className="text-xs text-slate-500 font-medium mt-1">P2P loan contracts you've funded — track installment returns.</p>
+                            <h2 className="text-2xl md:text-3xl font-bold text-fintech-heading tracking-tight">Funded Agreements</h2>
+                            <p className="text-sm text-fintech-muted font-normal mt-1">P2P loan contracts you've funded — track installment returns.</p>
                         </div>
                         {lenderAgreementsLoading && <FiLoader className="text-emerald-500 animate-spin" />}
                     </div>
@@ -737,39 +737,39 @@ const LenderDashboard = () => {
                                 <div key={agr.address} className={`premium-card !p-8 border-l-4 ${agr.completed ? 'border-l-emerald-500/50' : 'border-l-blue-500/50'}`}>
                                     <div className="flex justify-between items-start mb-6">
                                         <div>
-                                            <p className="text-[9px] font-mono text-slate-500 font-black uppercase tracking-wider">Agreement</p>
-                                            <p className="text-xs font-mono text-slate-400 mt-1">{agr.address.slice(0, 10)}...{agr.address.slice(-6)}</p>
+                                            <p className="text-[9px] font-mono text-fintech-muted font-black uppercase tracking-wider">Agreement</p>
+                                            <p className="text-xs font-mono text-fintech-muted mt-1">{agr.address.slice(0, 10)}...{agr.address.slice(-6)}</p>
                                         </div>
-                                        <span className={`text-[8px] font-black uppercase px-2 py-1 rounded-lg ${agr.completed ? 'bg-emerald-500/10 text-emerald-500' : agr.isOverdue ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'}`}>
+                                        <span className={`text-[8px] font-black uppercase px-2 py-1 rounded-lg ${agr.completed ? 'bg-emerald-500/10 text-emerald-500' : agr.isOverdue ? 'bg-red-500/10 text-red-500' : 'bg-fintech-accent/10 text-fintech-accent'}`}>
                                             {agr.completed ? 'Completed' : agr.isOverdue ? 'Borrower Overdue' : 'Active'}
                                         </span>
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-4 mb-6">
-                                        <div className="bg-slate-950/50 rounded-xl p-4">
+                                        <div className="bg-fintech-dark/50 rounded-xl p-4">
                                             <div className="flex items-center gap-2 mb-1">
                                                 <FiDollarSign size={11} className="text-emerald-500" />
-                                                <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Received So Far</p>
+                                                <p className="text-xs text-fintech-muted font-semibold uppercase tracking-wide">Received So Far</p>
                                             </div>
-                                            <p className="text-emerald-400 font-black italic text-lg">{paidSoFar} <span className="text-slate-500 text-sm font-normal not-italic">{agr.mode === 0 ? 'ETH' : 'tUSDT'}</span></p>
+                                            <p className="text-emerald-400 font-bold text-lg">{paidSoFar} <span className="text-fintech-muted text-sm font-normal not-italic">{agr.mode === 0 ? 'ETH' : 'tUSDT'}</span></p>
                                         </div>
-                                        <div className="bg-slate-950/50 rounded-xl p-4">
+                                        <div className="bg-fintech-dark/50 rounded-xl p-4">
                                             <div className="flex items-center gap-2 mb-1">
-                                                <FiTrendingUp size={11} className="text-blue-500" />
-                                                <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Total Expected</p>
+                                                <FiTrendingUp size={11} className="text-fintech-accent" />
+                                                <p className="text-xs text-fintech-muted font-semibold uppercase tracking-wide">Total Expected</p>
                                             </div>
-                                            <p className="text-white font-black italic text-lg">{totalExpected} <span className="text-slate-500 text-sm font-normal not-italic">{agr.mode === 0 ? 'ETH' : 'tUSDT'}</span></p>
+                                            <p className="text-fintech-heading font-semibold italic text-lg">{totalExpected} <span className="text-fintech-muted text-sm font-normal not-italic">{agr.mode === 0 ? 'ETH' : 'tUSDT'}</span></p>
                                         </div>
                                     </div>
 
                                     {/* Configuration Details */}
-                                    <div className="grid grid-cols-2 gap-4 mb-6 bg-slate-900/40 rounded-xl p-4 border border-slate-800">
+                                    <div className="grid grid-cols-2 gap-4 mb-6 bg-fintech-dark/40 rounded-xl p-4 border border-fintech-border">
                                         <div>
-                                            <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest mb-1">Currency Mode</p>
-                                            <p className="text-xs font-black text-white uppercase">{agr.mode === 0 ? 'Ethereum Base' : 'ERC20 (tUSDT)'}</p>
+                                            <p className="text-[8px] text-fintech-muted font-semibold uppercase tracking-wide mb-1">Currency Mode</p>
+                                            <p className="text-xs font-black text-fintech-heading uppercase">{agr.mode === 0 ? 'Ethereum Base' : 'ERC20 (tUSDT)'}</p>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest mb-1">Autopay Execution</p>
+                                            <p className="text-[8px] text-fintech-muted font-semibold uppercase tracking-wide mb-1">Autopay Execution</p>
                                             {agr.mode === 1 ? (
                                                 <span className="text-xs font-black text-emerald-400 uppercase flex items-center justify-end gap-1"><FiCheckCircle size={10} /> Enabled</span>
                                             ) : (
@@ -778,31 +778,31 @@ const LenderDashboard = () => {
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-4 gap-2 mb-6 bg-slate-950/50 rounded-xl p-3 text-center">
+                                    <div className="grid grid-cols-4 gap-2 mb-6 bg-fintech-dark/50 rounded-xl p-3 text-center">
                                         <div>
-                                            <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Received</p>
-                                            <p className="text-white font-black">{agr.paymentsMade}/{agr.totalDuration}</p>
+                                            <p className="text-[8px] text-fintech-muted font-semibold uppercase tracking-wide">Received</p>
+                                            <p className="text-fintech-heading font-semibold">{agr.paymentsMade}/{agr.totalDuration}</p>
                                         </div>
-                                        <div className="border-x border-slate-900">
-                                            <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Monthly</p>
+                                        <div className="border-x border-fintech-border">
+                                            <p className="text-[8px] text-fintech-muted font-semibold uppercase tracking-wide">Monthly</p>
                                             <p className="text-emerald-400 font-black text-[11px]">{agr.monthlyPayment} {agr.mode === 0 ? 'ETH' : 'tUSDT'}</p>
                                         </div>
-                                        <div className="border-r border-slate-900">
-                                            <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Remaining</p>
-                                            <p className="text-blue-400 font-black">{agr.remainingPayments}</p>
+                                        <div className="border-r border-fintech-border">
+                                            <p className="text-[8px] text-fintech-muted font-semibold uppercase tracking-wide">Remaining</p>
+                                            <p className="text-fintech-accent font-black">{agr.remainingPayments}</p>
                                         </div>
                                         <div>
-                                            <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Missed</p>
+                                            <p className="text-[8px] text-fintech-muted font-semibold uppercase tracking-wide">Missed</p>
                                             <p className="text-red-400 font-black">{agr.missedPayments}</p>
                                         </div>
                                     </div>
 
                                     <div>
                                         <div className="flex justify-between items-center mb-2">
-                                            <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Collection Progress</p>
-                                            <p className="text-[8px] text-slate-400 font-black">{progress.toFixed(0)}%</p>
+                                            <p className="text-[8px] text-fintech-muted font-semibold uppercase tracking-wide">Collection Progress</p>
+                                            <p className="text-[8px] text-fintech-muted font-black">{progress.toFixed(0)}%</p>
                                         </div>
-                                        <div className="h-1.5 bg-slate-900 rounded-full overflow-hidden">
+                                        <div className="h-1.5 bg-fintech-dark rounded-full overflow-hidden">
                                             <div
                                                 className="h-full bg-gradient-to-r from-emerald-600 to-blue-500 rounded-full transition-all duration-500"
                                                 style={{ width: `${progress}%` }}

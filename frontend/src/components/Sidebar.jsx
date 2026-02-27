@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -28,21 +28,21 @@ const Sidebar = ({ onClose }) => {
     };
 
     return (
-        <aside className="w-[280px] lg:w-64 bg-fintech-surface border-r border-fintech-border h-full flex flex-col pt-8 pb-6 px-4 overflow-y-auto">
-            <div className="flex items-center justify-between mb-10 px-4">
+        <aside className="w-[280px] lg:w-64 bg-white border-r border-fintech-border h-full flex flex-col pt-8 pb-6 px-4 overflow-y-auto">
+            <div className="flex items-center justify-between mb-12 px-4">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+                    <div className="w-10 h-10 bg-fintech-accent rounded-xl flex items-center justify-center shadow-lg shadow-fintech-accent/20">
                         <FiShield className="text-white text-xl" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-black text-white leading-none">PanCred</h1>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em]">Microfinance</p>
+                        <h1 className="text-xl font-black text-fintech-heading leading-none">PanCred</h1>
+                        <p className="text-xs text-fintech-muted font-bold uppercase tracking-[0.2em]">Microfinance</p>
                     </div>
                 </div>
                 {onClose && (
                     <button
                         onClick={onClose}
-                        className="lg:hidden w-8 h-8 flex items-center justify-center text-slate-500 hover:text-white"
+                        className="lg:hidden w-8 h-8 flex items-center justify-center text-fintech-muted hover:text-fintech-heading"
                     >
                         <FiX size={20} />
                     </button>
@@ -50,7 +50,7 @@ const Sidebar = ({ onClose }) => {
             </div>
 
             <nav className="flex-1 space-y-2">
-                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest px-4 mb-4">Protocol Menu</p>
+                <p className="text-xs text-fintech-muted font-bold uppercase tracking-widest px-4 mb-4">Protocol Menu</p>
 
                 <NavLink to="/dashboard" onClick={handleLinkClick} end className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
                     <FiHome /> Dashboard
@@ -72,8 +72,8 @@ const Sidebar = ({ onClose }) => {
                     <FiUser /> Protocol Profile
                 </NavLink>
 
-                <div className="pt-8">
-                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest px-4 mb-4">Support</p>
+                <div className="pt-10">
+                    <p className="text-xs text-fintech-muted font-bold uppercase tracking-widest px-4 mb-4">Support</p>
                     <NavLink to="/how-it-works" onClick={handleLinkClick} className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
                         <FiHelpCircle /> How it Works
                     </NavLink>
@@ -87,7 +87,7 @@ const Sidebar = ({ onClose }) => {
 
                 <button
                     onClick={handleLogout}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-red-400 hover:bg-red-400/5 rounded-xl transition-all duration-200 text-sm font-bold"
+                    className="w-full flex items-center gap-3 px-4 py-3 text-fintech-muted hover:text-red-400 hover:bg-red-400/5 rounded-xl transition-all duration-200 text-sm font-bold"
                 >
                     <FiLogOut /> Sign Out
                 </button>

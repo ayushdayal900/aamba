@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiMail, FiLock, FiLoader, FiArrowLeft, FiShield, FiArrowRight, FiCheckCircle, FiKey } from 'react-icons/fi';
@@ -116,14 +116,10 @@ const SignIn = () => {
 
     return (
         <div className="min-h-screen bg-fintech-dark flex flex-col items-center justify-center px-4 md:px-6 relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-                <div className="absolute top-[-10%] left-[-10%] w-[40%] aspect-square bg-blue-600/10 rounded-full blur-[120px]"></div>
-                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] aspect-square bg-fintech-accent/5 rounded-full blur-[120px]"></div>
-            </div>
 
             <button
                 onClick={() => navigate('/')}
-                className="absolute top-6 left-6 md:top-10 md:left-10 text-slate-500 hover:text-white flex items-center gap-2 transition-colors text-[10px] font-black uppercase tracking-widest group"
+                className="absolute top-6 left-6 md:top-10 md:left-10 text-fintech-muted hover:text-fintech-heading flex items-center gap-2 transition-colors text-sm font-semibold uppercase tracking-wide group"
             >
                 <FiArrowLeft className="group-hover:-translate-x-1 transition-transform" /> Exit to Terminal
             </button>
@@ -134,25 +130,25 @@ const SignIn = () => {
                 className="w-full max-w-md relative z-10"
             >
                 <div className="text-center mb-10 md:mb-12">
-                    <div className="w-16 h-16 md:w-20 md:h-20 bg-fintech-surface border border-fintech-border text-blue-500 rounded-2xl md:rounded-3xl flex items-center justify-center mx-auto mb-6 md:mb-8 shadow-2xl">
+                    <div className="w-16 h-16 md:w-20 md:h-20 bg-white border border-fintech-border text-fintech-accent rounded-2xl md:rounded-3xl flex items-center justify-center mx-auto mb-6 md:mb-8 shadow-2xl">
                         <FiShield size={32} className="md:w-10 md:h-10" />
                     </div>
-                    <h2 className="text-3xl md:text-4xl font-black text-white mb-2 tracking-tighter italic">Authorize Access</h2>
-                    <p className="text-sm md:text-base text-slate-500 font-medium font-sans italic">Enter your protocol credentials to continue.</p>
+                    <h2 className="text-3xl md:text-4xl font-black text-fintech-heading mb-2 tracking-tighter italic">Authorize Access</h2>
+                    <p className="text-base text-fintech-muted font-normal">Enter your protocol credentials to continue.</p>
                 </div>
 
-                <div className="premium-card !p-6 md:!p-8">
+                <div className="premium-card !p-8 md:!p-8">
                     <form onSubmit={handleLogin} className="space-y-6">
                         {!showOTP && (
                             <div className="space-y-5">
                                 <div>
-                                    <label className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 block mb-3 px-1">Email Anchor</label>
+                                    <label className="text-xs font-black uppercase tracking-[0.2em] text-fintech-muted block mb-2 px-1">Email Anchor</label>
                                     <div className="relative">
-                                        <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" />
+                                        <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-fintech-muted" />
                                         <input
                                             type="email"
                                             required
-                                            className="w-full bg-fintech-dark border border-fintech-border rounded-xl pl-12 pr-4 py-4 text-white focus:outline-none focus:border-blue-500 transition-all font-medium placeholder:text-slate-800 shadow-inner text-sm"
+                                            className="w-full bg-white border border-fintech-border rounded-xl pl-12 pr-4 py-4 text-fintech-heading focus:outline-none focus:border-fintech-accent transition-all font-medium placeholder:text-fintech-heading shadow-inner text-base"
                                             placeholder="you@protocol.com"
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
@@ -160,13 +156,13 @@ const SignIn = () => {
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 block mb-3 px-1">Secure Keyphrase</label>
+                                    <label className="text-xs font-black uppercase tracking-[0.2em] text-fintech-muted block mb-2 px-1">Secure Keyphrase</label>
                                     <div className="relative">
-                                        <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" />
+                                        <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-fintech-muted" />
                                         <input
                                             type="password"
                                             required
-                                            className="w-full bg-fintech-dark border border-fintech-border rounded-xl pl-12 pr-4 py-4 text-white focus:outline-none focus:border-blue-500 transition-all font-medium placeholder:text-slate-800 shadow-inner text-sm"
+                                            className="w-full bg-white border border-fintech-border rounded-xl pl-12 pr-4 py-4 text-fintech-heading focus:outline-none focus:border-fintech-accent transition-all font-medium placeholder:text-fintech-heading shadow-inner text-base"
                                             placeholder="••••••••"
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
@@ -177,7 +173,7 @@ const SignIn = () => {
                                     type="button"
                                     onClick={handleSendOTP}
                                     disabled={loading}
-                                    className="btn-primary w-full !py-5 text-[10px] md:text-xs font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 shadow-xl"
+                                    className="btn-primary w-full !py-5 font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 shadow-xl"
                                 >
                                     {loading ? <FiLoader className="animate-spin" /> : <><FiKey size={18} /> Initialize MFA Verification</>}
                                 </button>
@@ -187,14 +183,14 @@ const SignIn = () => {
                         {showOTP && !emailVerified && (
                             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6 py-2">
                                 <div className="text-center">
-                                    <p className="text-xs text-blue-500 font-black uppercase tracking-widest mb-2">MFA Required</p>
-                                    <p className="text-slate-400 text-[11px] font-medium italic">Sent to <span className="text-white">{email}</span></p>
+                                    <p className="text-sm text-fintech-accent font-semibold uppercase tracking-wide mb-3">MFA Required</p>
+                                    <p className="text-fintech-muted text-base font-normal">Sent to <span className="text-fintech-heading">{email}</span></p>
                                 </div>
                                 <input
                                     type="text"
                                     maxLength={6}
                                     placeholder="000000"
-                                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-5 text-2xl font-mono tracking-[0.5em] text-white text-center outline-none focus:border-blue-600 transition-all shadow-inner"
+                                    className="w-full bg-white border border-fintech-border rounded-xl py-5 text-2xl font-mono tracking-[0.5em] text-fintech-heading text-center outline-none focus:border-fintech-accent transition-all shadow-inner"
                                     value={otp}
                                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                                 />
@@ -202,7 +198,7 @@ const SignIn = () => {
                                     <button
                                         type="button"
                                         onClick={() => setShowOTP(false)}
-                                        className="py-4 bg-slate-900 border border-slate-800 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white transition-all"
+                                        className="py-3 min-h-[44px] bg-white border border-fintech-border rounded-xl text-sm font-semibold uppercase tracking-wide text-fintech-muted hover:text-fintech-heading transition-all"
                                     >
                                         Back
                                     </button>
@@ -210,7 +206,7 @@ const SignIn = () => {
                                         type="button"
                                         onClick={handleVerifyOTP}
                                         disabled={loading}
-                                        className="py-4 bg-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-blue-500/20"
+                                        className="py-3 min-h-[44px] bg-fintech-accent rounded-xl text-sm font-semibold uppercase tracking-wide text-fintech-heading shadow-lg shadow-fintech-accent/20"
                                     >
                                         Verify
                                     </button>
@@ -223,14 +219,14 @@ const SignIn = () => {
                                 <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-3">
                                     <FiCheckCircle className="text-emerald-500 shrink-0" size={20} />
                                     <div className="text-left">
-                                        <p className="text-emerald-500 text-[10px] font-black uppercase tracking-widest">MFA Clear</p>
-                                        <p className="text-white text-[11px] font-medium truncate">{email}</p>
+                                        <p className="text-emerald-600 text-xs font-semibold uppercase tracking-wide">MFA Clear</p>
+                                        <p className="text-fintech-heading text-base font-medium truncate">{email}</p>
                                     </div>
                                 </div>
                                 <button
                                     type="submit"
                                     disabled={loading}
-                                    className="btn-primary w-full !py-6 text-[10px] md:text-xs font-black uppercase tracking-[0.3em] flex items-center justify-center gap-4 bg-blue-600 shadow-xl animate-pulse hover:animate-none"
+                                    className="btn-primary w-full !py-6 font-black uppercase tracking-[0.3em] flex items-center justify-center gap-4 bg-fintech-accent shadow-xl animate-pulse hover:animate-none"
                                 >
                                     {loading ? <FiLoader className="animate-spin" /> : <>Finalize Authorization <FiArrowRight size={18} /></>}
                                 </button>
@@ -238,15 +234,16 @@ const SignIn = () => {
                         )}
                     </form>
 
-                    <div className="mt-8 md:mt-10 pt-8 border-t border-slate-900 text-center">
-                        <p className="text-slate-500 text-xs font-medium italic">
-                            New protocol entity? <button onClick={() => navigate('/signup')} className="text-blue-500 hover:text-blue-400 font-black ml-1 transition-colors uppercase tracking-widest">Generate Identity</button>
+                    <div className="mt-8 md:mt-10 pt-8 border-t border-fintech-border text-center">
+                        <p className="text-fintech-muted text-base font-normal">
+                            New protocol entity? <button onClick={() => navigate('/signup')} className="text-fintech-accent hover:text-fintech-accent font-black ml-1 transition-colors uppercase tracking-widest">Generate Identity</button>
                         </p>
                     </div>
                 </div>
             </motion.div>
         </div>
     );
+
 };
 
 export default SignIn;

@@ -1,10 +1,10 @@
-import React from 'react';
+﻿import React from 'react';
 import { FiCheckCircle, FiCircle, FiLoader } from 'react-icons/fi';
 
 const LoanTimeline = ({ status }) => {
     const steps = [
         { id: 'Pending', label: 'Created', color: 'bg-slate-400' },
-        { id: 'Funded', label: 'Funded', color: 'bg-blue-500' },
+        { id: 'Funded', label: 'Funded', color: 'bg-fintech-accent' },
         { id: 'Repaid', label: 'Repaid', color: 'bg-emerald-500' }
     ];
 
@@ -29,7 +29,7 @@ const LoanTimeline = ({ status }) => {
                     <div key={step.id} className="relative z-10 flex flex-col items-center">
                         <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${isActive
                                 ? 'bg-fintech-dark border-emerald-500 text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]'
-                                : 'bg-fintech-dark border-slate-600 text-slate-600'
+                                : 'bg-fintech-dark border-slate-600 text-fintech-muted'
                             }`}>
                             {isActive ? (
                                 isCurrent && status !== 'Repaid' ? <FiLoader className="animate-spin" /> : <FiCheckCircle />
@@ -37,7 +37,7 @@ const LoanTimeline = ({ status }) => {
                                 <FiCircle />
                             )}
                         </div>
-                        <span className={`absolute -bottom-6 text-[10px] font-bold uppercase tracking-widest transition-colors duration-300 whitespace-nowrap ${isActive ? 'text-white' : 'text-slate-500'
+                        <span className={`absolute -bottom-6 text-[10px] font-bold uppercase tracking-widest transition-colors duration-300 whitespace-nowrap ${isActive ? 'text-fintech-heading' : 'text-fintech-muted'
                             }`}>
                             {step.label}
                         </span>
