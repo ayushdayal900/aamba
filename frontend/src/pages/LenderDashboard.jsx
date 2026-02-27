@@ -5,7 +5,7 @@ import { ethers } from 'ethers';
 import { useAccount, useConfig, useWalletClient } from 'wagmi';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { FiLoader, FiTrendingUp, FiCheckCircle, FiInfo, FiSearch, FiGlobe, FiCalendar, FiDollarSign } from 'react-icons/fi';
+import { FiLoader, FiTrendingUp, FiCheckCircle, FiInfo, FiSearch, FiGlobe, FiCalendar, FiDollarSign, FiShield, FiAlertCircle, FiClock, FiZap } from 'react-icons/fi';
 
 
 import addresses from '../contracts/addresses.json';
@@ -42,6 +42,14 @@ const LenderDashboard = () => {
 
     const [tUSDTBalance, setTUSDTBalance] = useState("0.00");
     const [claimingFaucet, setClaimingFaucet] = useState(false);
+
+    // SBT Identity status for the lender
+    const [hasIdentity, setHasIdentity] = useState(false);
+    const [identityChecking, setIdentityChecking] = useState(true);
+
+    // Upcoming receivables from active factory agreements
+    const [upcomingPayments, setUpcomingPayments] = useState([]);
+    const [upcomingLoading, setUpcomingLoading] = useState(false);
 
 
     useEffect(() => {
@@ -86,12 +94,17 @@ const LenderDashboard = () => {
                 try {
                     const agr = new ethers.Contract(addr, agreementAbi, provider);
                     const status = await agr.getStatus();
+
+                    let mode = 0;
+                    try { mode = Number(await agr.getLoanMode()); } catch { mode = 0; }
+
                     return {
                         address: addr,
+                        mode,
                         paymentsMade: Number(status._paymentsMade),
                         totalDuration: Number(status._totalDuration),
                         nextDueTimestamp: Number(status._nextDueTimestamp),
-                        monthlyPayment: ethers.formatUnits(status._monthlyPayment, 6),
+                        monthlyPayment: mode === 0 ? ethers.formatEther(status._monthlyPayment) : ethers.formatUnits(status._monthlyPayment, 6),
                         remainingPayments: Number(status._remainingPayments),
                         completed: status._completed,
                         missedPayments: Number(status._missedPayments),
@@ -107,6 +120,23 @@ const LenderDashboard = () => {
             console.error('[LenderDashboard] fetchLenderAgreements error:', err);
         } finally {
             setLenderAgreementsLoading(false);
+        }
+    };
+
+    const fetchUpcomingPayments = async () => {
+        if (!token && !userProfile?.token) return;
+        setUpcomingLoading(true);
+        try {
+            const res = await axios.get('http://localhost:5000/api/loans/lender/upcoming-payments', {
+                headers: { Authorization: `Bearer ${token || userProfile.token}` }
+            });
+            if (res.data.success) {
+                setUpcomingPayments(res.data.data);
+            }
+        } catch (err) {
+            console.error('[LenderDashboard] fetchUpcomingPayments error:', err);
+        } finally {
+            setUpcomingLoading(false);
         }
     };
 
@@ -148,6 +178,7 @@ const LenderDashboard = () => {
         if (walletAddress) {
             fetchLenderAgreements();
             fetchBalance();
+            fetchUpcomingPayments();
         }
     }, [walletAddress, walletClient]);
 
@@ -241,16 +272,26 @@ const LenderDashboard = () => {
     };
 
     const verifyIdentity = async () => {
-        if (walletAddress) {
-            let provider = null;
-            if (walletClient) {
-                provider = new ethers.BrowserProvider(walletClient.transport);
-            }
+        if (!walletAddress) {
+            setIdentityChecking(false);
+            return;
+        }
+        setIdentityChecking(true);
+        try {
+            const provider = walletClient
+                ? new ethers.BrowserProvider(walletClient.transport)
+                : null;
             const hasNFT = await checkIdentityOwnership(walletAddress, provider);
+            setHasIdentity(hasNFT);
             if (!hasNFT && localStorage.getItem("isOnboarded") === "true") {
                 localStorage.removeItem("isOnboarded");
                 navigate("/onboarding");
             }
+        } catch (err) {
+            console.error('[LenderDashboard] verifyIdentity error:', err);
+            setHasIdentity(false);
+        } finally {
+            setIdentityChecking(false);
         }
     };
 
@@ -373,6 +414,44 @@ const LenderDashboard = () => {
                 </div>
             </header>
 
+            {/* ── Identity Status Pill Bar ── */}
+            <div className="flex flex-wrap items-center gap-3">
+                {identityChecking ? (
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800/60 border border-slate-700/50">
+                        <FiLoader size={12} className="text-slate-400 animate-spin" />
+                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Verifying Identity...</span>
+                    </div>
+                ) : hasIdentity ? (
+                    <>
+                        {/* Pill 1: Verified SBT */}
+                        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 shadow-[0_0_12px_rgba(16,185,129,0.08)] transition-all">
+                            <FiCheckCircle size={12} className="text-emerald-400" />
+                            <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400">Verified SBT</span>
+                        </div>
+                        {/* Pill 2: Authorized Node — SBT holder = authorized protocol participant */}
+                        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/25 shadow-[0_0_12px_rgba(59,130,246,0.08)] transition-all">
+                            <FiShield size={12} className="text-blue-400" />
+                            <span className="text-[9px] font-black uppercase tracking-widest text-blue-400">Authorized Node</span>
+                        </div>
+                    </>
+                ) : (
+                    /* Red pill: Not verified */
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/25 shadow-[0_0_12px_rgba(239,68,68,0.08)] transition-all">
+                        <FiAlertCircle size={12} className="text-red-400" />
+                        <span className="text-[9px] font-black uppercase tracking-widest text-red-400">Identity Not Verified</span>
+                    </div>
+                )}
+                {/* Network chain indicator */}
+                {chainId && (
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800/40 border border-slate-700/30">
+                        <div className={`w-1.5 h-1.5 rounded-full ${chainId === 11155111 ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+                        <span className={`text-[9px] font-black uppercase tracking-widest ${chainId === 11155111 ? 'text-slate-400' : 'text-red-400'}`}>
+                            {chainId === 11155111 ? 'Sepolia' : 'Wrong Network'}
+                        </span>
+                    </div>
+                )}
+            </div>
+
             {loading ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10">
                     {[1, 2, 3].map(i => (
@@ -453,6 +532,119 @@ const LenderDashboard = () => {
                 "Created by You" is always empty (lenders never create loans)
                 and "Funded by You" duplicates the Funded Agreements section below. */}
 
+            {/* ── Upcoming Receivables Section ── */}
+            <section className="mt-16 pt-16 border-t border-slate-900">
+                <div className="flex items-center justify-between mb-8">
+                    <div>
+                        <h2 className="text-2xl md:text-3xl font-black text-white italic tracking-tighter flex items-center gap-3">
+                            <FiClock className="text-emerald-500" /> Upcoming Receivables
+                        </h2>
+                        <p className="text-xs text-slate-500 font-medium mt-1">Scheduled installments from borrowers across all active agreements.</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        {upcomingLoading && <FiLoader className="text-emerald-500 animate-spin" />}
+                        <span className="text-[10px] bg-slate-800 text-slate-400 px-4 py-1.5 rounded-full font-black uppercase tracking-widest">
+                            {upcomingPayments.length} Active
+                        </span>
+                    </div>
+                </div>
+
+                {upcomingPayments.length === 0 && !upcomingLoading ? (
+                    <div className="premium-card py-14 text-center space-y-4 border-2 border-dashed border-slate-900">
+                        <div className="w-14 h-14 bg-slate-900 rounded-2xl flex items-center justify-center mx-auto text-slate-700">
+                            <FiClock size={28} />
+                        </div>
+                        <p className="text-slate-500 font-bold italic">No upcoming payments.</p>
+                        <p className="text-slate-600 text-sm font-medium">Fund a loan request on the marketplace to start earning installments.</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                        {upcomingPayments.map((payment) => {
+                            const dueDate = payment.nextDueDate > 0
+                                ? new Date(payment.nextDueDate * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                                : '—';
+                            const daysUntil = payment.nextDueDate > 0
+                                ? Math.ceil((payment.nextDueDate * 1000 - Date.now()) / (1000 * 60 * 60 * 24))
+                                : null;
+                            const isOverdue = payment.isOverdue || (daysUntil !== null && daysUntil < 0);
+
+                            return (
+                                <div
+                                    key={payment.loanId}
+                                    className={`premium-card !p-6 border-l-4 transition-all duration-300 hover:shadow-xl ${isOverdue
+                                        ? 'border-l-red-500/60'
+                                        : daysUntil !== null && daysUntil <= 3
+                                            ? 'border-l-amber-500/60'
+                                            : 'border-l-emerald-500/50'
+                                        }`}
+                                >
+                                    {/* Top row: installment amount + status */}
+                                    <div className="flex justify-between items-start mb-5">
+                                        <div>
+                                            <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">Installment</p>
+                                            <p className="text-2xl font-black text-white italic tracking-tighter">
+                                                {Number(payment.installmentAmount).toFixed(4)}
+                                                <span className="text-slate-500 text-xs font-normal not-italic ml-1.5">{payment.loanMode}</span>
+                                            </p>
+                                        </div>
+                                        {/* Overdue / Due Soon / Normal badge */}
+                                        {isOverdue ? (
+                                            <span className="text-[8px] font-black uppercase px-2.5 py-1 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 tracking-widest">
+                                                Overdue
+                                            </span>
+                                        ) : daysUntil !== null && daysUntil <= 3 ? (
+                                            <span className="text-[8px] font-black uppercase px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 tracking-widest">
+                                                Due Soon
+                                            </span>
+                                        ) : (
+                                            <span className="text-[8px] font-black uppercase px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 tracking-widest">
+                                                Scheduled
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* Details grid */}
+                                    <div className="grid grid-cols-2 gap-3 bg-slate-950/50 rounded-xl p-3 mb-4 border border-slate-900">
+                                        <div>
+                                            <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest mb-1">Next Due</p>
+                                            <p className="text-xs font-black text-white">{dueDate}</p>
+                                            {daysUntil !== null && (
+                                                <p className={`text-[9px] font-bold mt-0.5 ${isOverdue ? 'text-red-400' : daysUntil <= 3 ? 'text-amber-400' : 'text-slate-500'
+                                                    }`}>
+                                                    {isOverdue ? `${Math.abs(daysUntil)}d overdue` : daysUntil === 0 ? 'Today' : `in ${daysUntil}d`}
+                                                </p>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest mb-1">Borrower</p>
+                                            <p className="text-xs font-mono text-slate-400">
+                                                {payment.borrowerAddress
+                                                    ? `${payment.borrowerAddress.slice(0, 6)}...${payment.borrowerAddress.slice(-4)}`
+                                                    : '—'
+                                                }
+                                            </p>
+                                            <p className="text-[9px] text-slate-600 font-bold mt-0.5">{payment.remainingPayments} left</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Mode tag: Autopay or Manual */}
+                                    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest ${payment.autopay
+                                        ? 'bg-emerald-500/5 border border-emerald-500/15 text-emerald-400'
+                                        : 'bg-blue-500/5 border border-blue-500/15 text-blue-400'
+                                        }`}>
+                                        <FiZap size={10} className={payment.autopay ? 'text-emerald-400' : 'text-blue-400'} />
+                                        {payment.autopay ? 'Autopay Enabled' : 'Manual Repayment'}
+                                        {payment.missedPayments > 0 && (
+                                            <span className="ml-auto text-[8px] text-red-400 font-black">{payment.missedPayments} missed</span>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </section>
+
             {/* ── Factory Funded Agreements (Lender view) ── */}
             {addresses.loanFactory && lenderAgreements.length > 0 && (
                 <section className="mt-16 pt-16 border-t border-slate-900">
@@ -487,14 +679,30 @@ const LenderDashboard = () => {
                                                 <FiDollarSign size={11} className="text-emerald-500" />
                                                 <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Received So Far</p>
                                             </div>
-                                            <p className="text-emerald-400 font-black italic text-lg">{paidSoFar} <span className="text-slate-500 text-sm font-normal not-italic">tUSDT</span></p>
+                                            <p className="text-emerald-400 font-black italic text-lg">{paidSoFar} <span className="text-slate-500 text-sm font-normal not-italic">{agr.mode === 0 ? 'ETH' : 'tUSDT'}</span></p>
                                         </div>
                                         <div className="bg-slate-950/50 rounded-xl p-4">
                                             <div className="flex items-center gap-2 mb-1">
                                                 <FiTrendingUp size={11} className="text-blue-500" />
                                                 <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Total Expected</p>
                                             </div>
-                                            <p className="text-white font-black italic text-lg">{totalExpected} <span className="text-slate-500 text-sm font-normal not-italic">tUSDT</span></p>
+                                            <p className="text-white font-black italic text-lg">{totalExpected} <span className="text-slate-500 text-sm font-normal not-italic">{agr.mode === 0 ? 'ETH' : 'tUSDT'}</span></p>
+                                        </div>
+                                    </div>
+
+                                    {/* Configuration Details */}
+                                    <div className="grid grid-cols-2 gap-4 mb-6 bg-slate-900/40 rounded-xl p-4 border border-slate-800">
+                                        <div>
+                                            <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest mb-1">Currency Mode</p>
+                                            <p className="text-xs font-black text-white uppercase">{agr.mode === 0 ? 'Ethereum Base' : 'ERC20 (tUSDT)'}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest mb-1">Autopay Execution</p>
+                                            {agr.mode === 1 ? (
+                                                <span className="text-xs font-black text-emerald-400 uppercase flex items-center justify-end gap-1"><FiCheckCircle size={10} /> Enabled</span>
+                                            ) : (
+                                                <span className="text-xs font-black text-amber-500 uppercase flex items-center justify-end gap-1">Disabled</span>
+                                            )}
                                         </div>
                                     </div>
 
@@ -505,7 +713,7 @@ const LenderDashboard = () => {
                                         </div>
                                         <div className="border-x border-slate-900">
                                             <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Monthly</p>
-                                            <p className="text-emerald-400 font-black text-[11px]">{agr.monthlyPayment} tUSDT</p>
+                                            <p className="text-emerald-400 font-black text-[11px]">{agr.monthlyPayment} {agr.mode === 0 ? 'ETH' : 'tUSDT'}</p>
                                         </div>
                                         <div className="border-r border-slate-900">
                                             <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Remaining</p>

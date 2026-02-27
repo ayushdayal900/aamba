@@ -1,6 +1,16 @@
 const LoanRequest = require('../models/LoanRequest');
 const User = require('../models/User');
 const { updateTrustScore } = require('../services/blockchainService');
+const { ethers } = require('ethers');
+const fs = require('fs');
+const path = require('path');
+
+// Load factory ABI + addresses for on-chain ad queries
+const _factoryAbi = JSON.parse(fs.readFileSync(path.join(__dirname, '../contracts/LoanAgreementFactory.json'), 'utf8'));
+const factoryAbi = Array.isArray(_factoryAbi) ? _factoryAbi : _factoryAbi.abi;
+const _agreementAbi = JSON.parse(fs.readFileSync(path.join(__dirname, '../contracts/LoanAgreement.json'), 'utf8'));
+const agreementAbi = Array.isArray(_agreementAbi) ? _agreementAbi : _agreementAbi.abi;
+const backendAddresses = JSON.parse(fs.readFileSync(path.join(__dirname, '../contracts/addresses.json'), 'utf8'));
 
 // @desc    Create a new loan request (Borrower action)
 // @route   POST /api/loans
@@ -176,3 +186,161 @@ exports.repayLoan = async (req, res) => {
     }
 };
 
+// @desc    Get all on-chain loan ads posted by the logged-in borrower (Factory)
+// @route   GET /api/borrower/my-ads
+exports.getBorrowerAds = async (req, res) => {
+    try {
+        const userId = req.user._id || req.user.id;
+        const user = await User.findById(userId);
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        if (!user.walletAddress) {
+            return res.status(200).json({ success: true, count: 0, data: [] });
+        }
+
+        const factoryAddress = backendAddresses.loanFactory;
+        if (!factoryAddress) {
+            return res.status(200).json({ success: true, count: 0, data: [], warning: 'Factory contract not deployed' });
+        }
+
+        const rpcUrl = process.env.RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com';
+        const provider = new ethers.JsonRpcProvider(rpcUrl);
+        const factory = new ethers.Contract(factoryAddress, factoryAbi, provider);
+
+        // Fetch request IDs for this borrower
+        const requestIds = await factory.getBorrowerRequestIds(user.walletAddress);
+
+        if (!requestIds || requestIds.length === 0) {
+            return res.status(200).json({ success: true, count: 0, data: [] });
+        }
+
+        // Fetch each request's details from the contract
+        const ads = await Promise.all(
+            requestIds.map(async (idBn) => {
+                try {
+                    const r = await factory.loanRequests(idBn);
+                    const rMode = Number(r.mode) || 0;
+                    const decimals = rMode === 0 ? 18 : 6;
+                    const modeLabel = rMode === 0 ? 'ETH' : 'tUSDT';
+
+                    // Determine status from on-chain state
+                    const status = r.funded ? 'Funded' : 'Open';
+
+                    return {
+                        adId: Number(r.id),
+                        principal: ethers.formatUnits(r.principal, decimals),
+                        totalRepayment: ethers.formatUnits(r.totalRepayment, decimals),
+                        repaymentInterval: Number(r.durationInMonths),
+                        loanMode: modeLabel,
+                        status,
+                        agreementAddress: r.agreementAddress !== ethers.ZeroAddress ? r.agreementAddress : null,
+                    };
+                } catch (err) {
+                    console.error('[getBorrowerAds] Failed to read request:', idBn.toString(), err.message);
+                    return null;
+                }
+            })
+        );
+
+        const validAds = ads.filter(Boolean);
+        res.status(200).json({ success: true, count: validAds.length, data: validAds });
+    } catch (error) {
+        console.error('[getBorrowerAds] Error:', error.message);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Get upcoming receivable payments for the logged-in lender (Factory Agreements)
+// @route   GET /api/loans/lender/upcoming-payments
+exports.getLenderUpcomingPayments = async (req, res) => {
+    try {
+        const userId = req.user._id || req.user.id;
+        const user = await User.findById(userId);
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        if (!user.walletAddress) {
+            return res.status(200).json({ success: true, count: 0, data: [] });
+        }
+
+        const factoryAddress = backendAddresses.loanFactory;
+        if (!factoryAddress) {
+            return res.status(200).json({ success: true, count: 0, data: [], warning: 'Factory contract not deployed' });
+        }
+
+        const rpcUrl = process.env.RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com';
+        const provider = new ethers.JsonRpcProvider(rpcUrl);
+        const factory = new ethers.Contract(factoryAddress, factoryAbi, provider);
+
+        // Get all agreement contract addresses for this lender
+        const agreementAddresses = await factory.getLenderAgreements(user.walletAddress);
+
+        if (!agreementAddresses || agreementAddresses.length === 0) {
+            return res.status(200).json({ success: true, count: 0, data: [] });
+        }
+
+        // Read each agreement concurrently
+        const results = await Promise.all(
+            agreementAddresses.map(async (agrAddr) => {
+                try {
+                    const agr = new ethers.Contract(agrAddr, agreementAbi, provider);
+
+                    // Parallelize the three read calls
+                    const [status, borrowerAddr, rawMode] = await Promise.all([
+                        agr.getStatus(),
+                        agr.borrower(),
+                        agr.getLoanMode().catch(() => 0),
+                    ]);
+
+                    const mode = Number(rawMode);
+                    const decimals = mode === 0 ? 18 : 6;
+                    const loanMode = mode === 0 ? 'ETH' : 'tUSDT';
+
+                    const completed = status._completed;
+                    const remainingPayments = Number(status._remainingPayments);
+
+                    // Only include active (not completed) agreements with payments still due
+                    if (completed || remainingPayments === 0) return null;
+
+                    const nextDueTimestamp = Number(status._nextDueTimestamp);
+                    const installmentAmount = ethers.formatUnits(status._monthlyPayment, decimals);
+                    const isOverdue = status._isOverdue;
+                    const missedPayments = Number(status._missedPayments);
+
+                    return {
+                        loanId: agrAddr,                          // agreement contract address acts as unique ID
+                        borrowerAddress: borrowerAddr,
+                        nextDueDate: nextDueTimestamp,            // Unix timestamp
+                        nextDueDateISO: nextDueTimestamp > 0
+                            ? new Date(nextDueTimestamp * 1000).toISOString()
+                            : null,
+                        installmentAmount,
+                        loanMode,
+                        remainingPayments,
+                        missedPayments,
+                        isOverdue,
+                        autopay: mode === 1,                      // ERC20 = autopay enabled
+                    };
+                } catch (err) {
+                    console.error('[getLenderUpcomingPayments] Failed to read agreement:', agrAddr, err.message);
+                    return null;
+                }
+            })
+        );
+
+        // Filter nulls, sort by nextDueDate ascending (soonest first)
+        const upcoming = results
+            .filter(Boolean)
+            .sort((a, b) => a.nextDueDate - b.nextDueDate);
+
+        res.status(200).json({ success: true, count: upcoming.length, data: upcoming });
+    } catch (error) {
+        console.error('[getLenderUpcomingPayments] Error:', error.message);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

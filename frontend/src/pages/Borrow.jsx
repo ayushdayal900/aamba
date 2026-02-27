@@ -10,8 +10,10 @@ import {
 import { checkIdentityOwnership, parseBlockchainError } from '../blockchainService';
 import addresses from '../contracts/addresses.json';
 import _factoryJson from '../contracts/LoanAgreementFactory.json';
+import _usdtJson from '../contracts/MockUSDT.json';
 
 const factoryAbi = Array.isArray(_factoryJson) ? _factoryJson : _factoryJson.abi;
+const usdtAbi = Array.isArray(_usdtJson) ? _usdtJson : _usdtJson.abi;
 
 // ─── Loan Request Form ──────────────────────────────────────────────────────
 const LoanRequestForm = ({ walletAddress, walletClient }) => {
@@ -20,6 +22,28 @@ const LoanRequestForm = ({ walletAddress, walletClient }) => {
     const [duration, setDuration] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+
+    const [loanMode, setLoanMode] = useState(0); // 0: ETH, 1: ERC20
+    const [tokenSymbol, setTokenSymbol] = useState('...');
+    const [tokenDecimals, setTokenDecimals] = useState(18);
+
+    useEffect(() => {
+        const fetchTokenData = async () => {
+            if (loanMode === 1 && walletClient && addresses.mockUSDT) {
+                try {
+                    const provider = new ethers.BrowserProvider(walletClient.transport);
+                    const token = new ethers.Contract(addresses.mockUSDT, usdtAbi, provider);
+                    setTokenSymbol(await token.symbol());
+                    setTokenDecimals(Number(await token.decimals()));
+                } catch (e) {
+                    console.error("Token fetch failed", e);
+                    setTokenSymbol("tUSDT");
+                    setTokenDecimals(6);
+                }
+            }
+        };
+        fetchTokenData();
+    }, [loanMode, walletClient]);
 
     const impliedAPR = (() => {
         if (!principal || !totalRepayment || !duration) return null;
@@ -63,11 +87,11 @@ const LoanRequestForm = ({ walletAddress, walletClient }) => {
             const signer = await provider.getSigner();
             const factory = new ethers.Contract(addresses.loanFactory, factoryAbi, signer);
 
-            const principalWei = ethers.parseEther(principal.toString());
-            const repaymentWei = ethers.parseEther(totalRepayment.toString());
+            const principalWei = loanMode === 0 ? ethers.parseEther(principal.toString()) : ethers.parseUnits(principal.toString(), tokenDecimals);
+            const repaymentWei = loanMode === 0 ? ethers.parseEther(totalRepayment.toString()) : ethers.parseUnits(totalRepayment.toString(), tokenDecimals);
 
             toast.loading('Confirm in wallet...', { id: tid });
-            const tx = await factory.createLoanRequest(principalWei, repaymentWei, durationMonths);
+            const tx = await factory.createLoanRequestWithMode(principalWei, repaymentWei, durationMonths, loanMode);
 
             toast.loading('Broadcasting to Sepolia...', { id: tid });
             await tx.wait();
@@ -113,33 +137,66 @@ const LoanRequestForm = ({ walletAddress, walletClient }) => {
                 </div>
             )}
 
+            <div className="flex bg-slate-900 rounded-xl p-1 mb-6 border border-slate-800">
+                <button
+                    type="button"
+                    onClick={() => setLoanMode(0)}
+                    className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${loanMode === 0 ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}
+                >
+                    ETH
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setLoanMode(1)}
+                    className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${loanMode === 1 ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}
+                >
+                    ERC20 {tokenSymbol !== '...' ? `(${tokenSymbol})` : ''}
+                </button>
+            </div>
+
+            {loanMode === 0 ? (
+                <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 mb-6">
+                    <FiAlertCircle className="text-amber-500 shrink-0 mt-0.5" />
+                    <p className="text-[11px] text-amber-400 font-bold leading-relaxed">
+                        Automatic repayment not available for ETH loans. You must trigger payments manually each month.
+                    </p>
+                </div>
+            ) : (
+                <div className="flex items-start gap-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3 mb-6">
+                    <FiCheckCircle className="text-emerald-500 shrink-0 mt-0.5" />
+                    <p className="text-[11px] text-emerald-400 font-bold leading-relaxed">
+                        Automatic repayment enabled via ERC20 approval. Our smart service will process your installments directly.
+                    </p>
+                </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div>
                         <label className="block text-[9px] uppercase font-black text-slate-600 tracking-[0.2em] mb-3 px-1">
-                            Principal (ETH) — Amount you need
+                            Principal ({loanMode === 0 ? 'ETH' : tokenSymbol}) — Amount you need
                         </label>
                         <input
                             type="number"
                             value={principal}
                             onChange={e => setPrincipal(e.target.value)}
-                            required min="0.001" step="0.001"
+                            required min="0.000001" step="any"
                             placeholder="0.500"
-                            className="w-full bg-fintech-dark border border-fintech-border text-white rounded-xl p-4 focus:border-blue-500 focus:outline-none transition-all font-mono text-lg shadow-inner"
+                            className={`w-full bg-fintech-dark border border-fintech-border text-white rounded-xl p-4 focus:outline-none transition-all font-mono text-lg shadow-inner ${loanMode === 0 ? 'focus:border-blue-500' : 'focus:border-emerald-500'}`}
                         />
                     </div>
 
                     <div>
                         <label className="block text-[9px] uppercase font-black text-slate-600 tracking-[0.2em] mb-3 px-1">
-                            Total Repayment (ETH) — You pay back
+                            Total Repayment ({loanMode === 0 ? 'ETH' : tokenSymbol}) — You pay back
                         </label>
                         <input
                             type="number"
                             value={totalRepayment}
                             onChange={e => setTotalRepayment(e.target.value)}
-                            required min="0.001" step="0.001"
+                            required min="0.000001" step="any"
                             placeholder="0.600"
-                            className="w-full bg-fintech-dark border border-fintech-border text-white rounded-xl p-4 focus:border-blue-500 focus:outline-none transition-all font-mono text-lg shadow-inner"
+                            className={`w-full bg-fintech-dark border border-fintech-border text-white rounded-xl p-4 focus:outline-none transition-all font-mono text-lg shadow-inner ${loanMode === 0 ? 'focus:border-blue-500' : 'focus:border-emerald-500'}`}
                         />
                     </div>
                 </div>
@@ -163,7 +220,7 @@ const LoanRequestForm = ({ walletAddress, walletClient }) => {
                     <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-6 grid grid-cols-3 gap-4 text-center">
                         <div>
                             <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">Monthly</p>
-                            <p className="text-white font-black italic text-lg">{monthlyPayment} <span className="text-slate-500 text-xs not-italic">ETH</span></p>
+                            <p className="text-white font-black italic text-lg">{monthlyPayment} <span className="text-slate-500 text-xs not-italic">{loanMode === 0 ? 'ETH' : tokenSymbol}</span></p>
                         </div>
                         <div>
                             <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">Implied APR</p>
@@ -171,7 +228,7 @@ const LoanRequestForm = ({ walletAddress, walletClient }) => {
                         </div>
                         <div>
                             <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">Insurance</p>
-                            <p className="text-amber-400 font-black italic text-lg">0.01 <span className="text-slate-500 text-xs not-italic">ETH</span></p>
+                            <p className="text-amber-400 font-black italic text-lg">0.01 <span className="text-slate-500 text-xs not-italic">{loanMode === 0 ? 'ETH' : tokenSymbol}</span></p>
                         </div>
                     </div>
                 )}
@@ -180,7 +237,7 @@ const LoanRequestForm = ({ walletAddress, walletClient }) => {
                     <FiInfo className="text-slate-500 shrink-0 mt-0.5" size={13} />
                     <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
                         Once a lender funds your request, a smart contract is deployed and principal is transferred to your wallet instantly.
-                        A total of <strong className="text-slate-400">0.01 ETH insurance fee</strong> is distributed to the protocol treasury across your installments.
+                        A total of <strong className="text-slate-400">0.01 {loanMode === 0 ? 'ETH' : tokenSymbol} insurance fee</strong> is distributed to the protocol treasury across your installments.
                     </p>
                 </div>
 
