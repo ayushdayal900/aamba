@@ -325,13 +325,7 @@
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "user",
-        "type": "address"
-      }
-    ],
+    "inputs": [],
     "name": "mintIdentity",
     "outputs": [],
     "stateMutability": "nonpayable",
