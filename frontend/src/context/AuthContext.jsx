@@ -31,6 +31,12 @@ api.interceptors.request.use(
 api.interceptors.response.use(
     (response) => response,
     (error) => {
+        // Skip global intercept redirect if the 401 came from login/register endpoints
+        const originalRequest = error.config;
+        if (originalRequest && (originalRequest.url.includes('/login') || originalRequest.url.includes('/register'))) {
+            return Promise.reject(error);
+        }
+
         if (error.response?.status === 401) {
             console.warn("Unauthorized detected. Clearing session.");
             localStorage.removeItem('userInfo');

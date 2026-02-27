@@ -112,7 +112,7 @@ contract LoanAgreement is ReentrancyGuard {
         monthlyPayment    = _totalRepayment / _durationInMonths;
         insuranceFeePerInstallment = _insuranceFee / _durationInMonths;
 
-        nextDueTimestamp = block.timestamp;
+        nextDueTimestamp = block.timestamp + REPAYMENT_INTERVAL;
 
         if (loanMode == LoanMode.ETH) {
             // Forward ETH principal to borrower

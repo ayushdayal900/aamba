@@ -63,6 +63,11 @@ const loanRequestSchema = new mongoose.Schema({
     onChainProcessed: {
         type: Boolean,
         default: false,
+    },
+    isActive: {
+        type: Boolean,
+        default: true,
+        index: true
     }
 }, { timestamps: true });
 

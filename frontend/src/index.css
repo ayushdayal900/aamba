@@ -1,40 +1,76 @@
 @import "tailwindcss";
 
 @theme {
-  --color-fintech-dark: #020617;
-  /* Slasher ink dark */
-  --color-fintech-surface: #0f172a;
-  --color-fintech-card: #1e293b;
-  --color-fintech-accent: #2563eb;
-  /* Stronger blue */
-  --color-fintech-success: #10b981;
-  --color-fintech-warning: #f59e0b;
-  --color-fintech-border: #1e293b;
-  --color-fintech-muted: #64748b;
+  --color-bg-primary: var(--bg-primary);
+  --color-card-bg: var(--card-bg);
+  --color-brand-accent: var(--brand-accent);
+  --color-brand-dark: var(--brand-dark);
+  --color-brand-soft: var(--brand-soft);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-border: var(--border);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+
+  --color-fintech-dark: var(--bg-primary);
+  --color-fintech-surface: var(--card-bg);
+  --color-fintech-card: var(--card-bg);
+  --color-fintech-accent: var(--brand-accent);
+  --color-fintech-success: var(--success);
+  --color-fintech-warning: var(--warning);
+  --color-fintech-border: var(--border);
+  --color-fintech-muted: var(--text-secondary);
+
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 
-  --shadow-premium: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-premium-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-premium: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  --shadow-premium-xl: 0 20px 25px -5px rgb(0 0 0 / 0.05), 0 8px 10px -6px rgb(0 0 0 / 0.05);
+}
+
+:root,
+[data-theme="light"] {
+  --bg-primary: #F2FBFA;
+  --card-bg: #FFFFFF;
+  --brand-accent: #2EC4B6;
+  --brand-dark: #1F3F4C;
+  --brand-soft: #5D8AA8;
+  --success: #16A34A;
+  --warning: #D97706;
+  --border: #DCEEEF;
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+}
+
+[data-theme="dark"] {
+  /* Adapted Dark Mode for Aqua Glow (Teal Focus) */
+  --bg-primary: #0A141A;
+  --card-bg: #101F25;
+  --brand-accent: #2EC4B6;
+  --brand-dark: #FFFFFF;
+  --brand-soft: #5D8AA8;
+  --success: #10B981;
+  --warning: #F59E0B;
+  --border: #1E3741;
+  --text-primary: #F2FBFA;
+  --text-secondary: #8BA8B5;
 }
 
 @layer base {
   html {
     scroll-behavior: smooth;
     font-size: 14px;
-    /* Mobile base */
+    background-color: var(--bg-primary);
   }
 
   @media (min-width: 1024px) {
     html {
       font-size: 16px;
-      /* Desktop base */
     }
   }
 
   body {
-    background-color: var(--color-fintech-dark);
-    color: #f1f5f9;
-    /* slate-100 */
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
     font-family: var(--font-sans);
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
@@ -61,7 +97,7 @@
   h6 {
     font-weight: 900;
     letter-spacing: -0.04em;
-    color: #ffffff;
+    color: var(--brand-dark);
   }
 }
 
@@ -71,25 +107,74 @@
   }
 
   .premium-card {
-    @apply bg-fintech-surface border border-fintech-border rounded-xl shadow-premium p-5 md:p-6 lg:p-8 transition-all duration-300;
+    @apply bg-card-bg border border-border rounded-xl shadow-premium p-5 md:p-6 lg:p-8 transition-all duration-300;
   }
 
   .premium-card:hover {
-    @apply border-fintech-accent/30 shadow-premium-xl;
+    @apply shadow-premium-xl;
+    border-color: rgba(46, 196, 182, 0.3);
   }
 
   .btn-primary {
-    @apply bg-fintech-accent hover:bg-blue-700 text-white font-black uppercase tracking-widest text-[10px] py-4 px-6 rounded-xl transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 flex items-center justify-center gap-2;
+    @apply bg-brand-accent text-white font-black uppercase tracking-widest text-[10px] py-4 px-6 rounded-xl transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 flex items-center justify-center gap-2;
+    min-height: 44px;
+  }
+
+  .btn-primary:hover {
+    box-shadow: 0 4px 12px rgba(46, 196, 182, 0.4);
+    transform: translateY(-1px);
+  }
+
+  .btn-ghost {
+    @apply bg-transparent border-2 border-brand-accent text-brand-accent font-black uppercase tracking-widest text-[10px] py-4 px-6 rounded-xl transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2;
+    min-height: 44px;
+  }
+
+  .btn-ghost:hover {
+    @apply bg-brand-accent text-white;
+  }
+
+  .btn-success {
+    @apply bg-success text-white font-black uppercase tracking-widest text-[10px] py-4 px-6 rounded-xl transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2;
+    min-height: 44px;
+  }
+
+  .btn-warning {
+    @apply bg-warning text-white font-black uppercase tracking-widest text-[10px] py-4 px-6 rounded-xl transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2;
     min-height: 44px;
   }
 
   .sidebar-link {
-    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:text-white hover:bg-slate-800 transition-all duration-200 text-sm font-bold;
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-text-secondary hover:text-brand-accent hover:bg-bg-primary transition-all duration-200 text-sm font-bold;
   }
 
   .sidebar-link.active {
-    @apply bg-blue-600/10 text-blue-500 border border-blue-500/20;
-    box-shadow: 0 0 20px rgba(37, 99, 235, 0.1);
+    @apply text-brand-accent border border-brand-accent;
+    background-color: rgba(46, 196, 182, 0.1);
+    box-shadow: 0 0 20px rgba(46, 196, 182, 0.1);
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider text-brand-accent border border-brand-accent;
+    background-color: rgba(46, 196, 182, 0.1);
+  }
+
+  .badge-success {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider text-success border border-success;
+    background-color: rgba(22, 163, 74, 0.1);
+  }
+
+  .badge-warning {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider text-warning border border-warning;
+    background-color: rgba(217, 119, 6, 0.1);
+  }
+
+  .badge-pill {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-widest border border-border bg-card-bg text-text-secondary shadow-sm;
+  }
+
+  .section-label {
+    @apply text-[10px] md:text-xs font-black uppercase tracking-[0.2em] text-brand-accent mb-3 block;
   }
 }
 
@@ -99,16 +184,16 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-fintech-dark);
+  background: var(--bg-primary);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-fintech-border);
+  background: var(--border);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-fintech-muted);
+  background: var(--brand-accent);
 }
 
 /* ── AWS Amplify FaceLivenessDetector — dark theme overrides ─────────────── */
@@ -116,12 +201,12 @@
   --amplify-colors-background-primary: #0a0f1e;
   --amplify-colors-background-secondary: #0f172a;
   --amplify-colors-background-tertiary: #1e293b;
-  --amplify-colors-border-primary: rgba(255,255,255,0.08);
-  --amplify-colors-border-secondary: rgba(255,255,255,0.05);
+  --amplify-colors-border-primary: rgba(255, 255, 255, 0.08);
+  --amplify-colors-border-secondary: rgba(255, 255, 255, 0.05);
   --amplify-colors-font-primary: #f1f5f9;
   --amplify-colors-font-secondary: #94a3b8;
   --amplify-colors-font-tertiary: #64748b;
-  --amplify-colors-brand-primary-10: rgba(37,99,235,0.1);
+  --amplify-colors-brand-primary-10: rgba(37, 99, 235, 0.1);
   --amplify-colors-brand-primary-80: #2563eb;
   --amplify-colors-brand-primary-90: #1d4ed8;
   --amplify-colors-brand-primary-100: #1e40af;
@@ -136,61 +221,19 @@
 
 .liveness-dark-wrapper .amplify-liveness-start-screen {
   background: #0f172a !important;
-  border: 1px solid rgba(255,255,255,0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-radius: 16px !important;
+  padding: 32px !important;
 }
 
-.liveness-dark-wrapper .amplify-liveness-start-screen__header,
-.liveness-dark-wrapper .amplify-liveness-start-screen__body {
-  background: transparent !important;
-  color: #f1f5f9 !important;
-}
-
-.liveness-dark-wrapper .amplify-liveness-toast {
-  background: #1e293b !important;
-  border: 1px solid rgba(255,255,255,0.1) !important;
-  border-radius: 12px !important;
-  color: #f1f5f9 !important;
-  backdrop-filter: blur(20px);
-}
-
-.liveness-dark-wrapper .amplify-liveness-toast__header {
-  color: #f1f5f9 !important;
+.liveness-dark-wrapper .amplify-button {
+  font-family: inherit !important;
+  font-size: 14px !important;
   font-weight: 700 !important;
-}
-
-.liveness-dark-wrapper .amplify-liveness-toast__message {
-  color: #94a3b8 !important;
-}
-
-.liveness-dark-wrapper button[data-variation="primary"] {
-  background: linear-gradient(135deg, #2563eb, #4f46e5) !important;
-  border: none !important;
   border-radius: 12px !important;
-  font-weight: 800 !important;
-  letter-spacing: 0.08em !important;
-  text-transform: uppercase !important;
-  font-size: 0.75rem !important;
-  padding: 0.85rem 2rem !important;
-  box-shadow: 0 4px 20px rgba(37,99,235,0.4) !important;
-  transition: all 0.2s !important;
 }
 
-.liveness-dark-wrapper button[data-variation="primary"]:hover {
-  background: linear-gradient(135deg, #1d4ed8, #4338ca) !important;
-  box-shadow: 0 4px 24px rgba(37,99,235,0.6) !important;
-}
-
-.liveness-dark-wrapper .amplify-liveness-camera-module {
-  border-radius: 16px !important;
-  overflow: hidden !important;
-  border: 1px solid rgba(255,255,255,0.08) !important;
-  /* Make the camera module significantly larger */
-  min-height: 50vh !important;
-}
-
-/* Force the video inside to scale up */
-.liveness-dark-wrapper .amplify-liveness-video {
-  transform: scale(1.3) !important;
-  transform-origin: center center !important;
+/* Keep standard Tailwind utility overriding capabilities active */
+* {
+  border-color: var(--border);
 }

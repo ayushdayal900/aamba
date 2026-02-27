@@ -125,7 +125,13 @@ async function listenToContractEvents() {
 
     console.log('🎧 Starting robust event polling for Microfinance...');
 
-    let lastPolledBlock = await provider.getBlockNumber();
+    let lastPolledBlock;
+    try {
+        lastPolledBlock = await provider.getBlockNumber();
+    } catch (err) {
+        console.warn('⚠️ Could not fetch initial block number (RPC error). Event polling will retry on next tick:', err.message);
+        lastPolledBlock = 0;
+    }
 
     // Poll interval - check every 15 seconds
     setInterval(async () => {
