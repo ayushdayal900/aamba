@@ -15,6 +15,7 @@ import LandingPage from "./pages/LandingPage";
 import SignIn from "./pages/SignIn";
 import Signup from "./pages/Signup";
 import HowItWorks from "./pages/HowItWorks";
+import LivenessVerification from "./pages/LivenessVerification";
 import { useAuth } from "./context/AuthContext";
 import { useAccount } from "wagmi";
 import { checkIdentityOwnership } from "./blockchainService";
@@ -28,26 +29,6 @@ const ProtectedRoute = ({
   isAuthenticated,
   walletConnected,
 }) => {
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Navbar from './components/Navbar';
-import Dashboard from './pages/Dashboard';
-import Lend from './pages/Lend';
-import Borrow from './pages/Borrow';
-import Onboarding from './pages/Onboarding';
-import Profile from './pages/Profile';
-import LandingPage from './pages/LandingPage';
-import SignIn from './pages/SignIn';
-import Signup from './pages/Signup';
-import HowItWorks from './pages/HowItWorks';
-import LivenessVerification from './pages/LivenessVerification';
-import { useAuth } from './context/AuthContext';
-import { useAccount } from 'wagmi';
-import { checkIdentityOwnership } from './blockchainService';
-import { useState, useEffect } from 'react';
-import Layout from './components/Layout';
-
-const ProtectedRoute = ({ children, loading, isAuthenticated, walletConnected }) => {
   const isOnboarded = localStorage.getItem("isOnboarded") === "true";
 
   console.log("--- ProtectedRoute Debug ---");
