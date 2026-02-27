@@ -1,8 +1,15 @@
 const Groq = require("groq-sdk");
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
+let _groq = null;
+function getGroq() {
+  if (!_groq) {
+    if (!process.env.GROQ_API_KEY) {
+      throw new Error("GROQ_API_KEY is not set in .env");
+    }
+    _groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+  }
+  return _groq;
+}
 
 // System prompt defining the chatbot's roles and instructions for structured data
 const SYSTEM_PROMPT = `You are a microfinance support assistant, a loan guide, a multilingual assistant, and a structured loan data extractor for Aamba.
@@ -58,7 +65,7 @@ const getChatCompletion = async (messages) => {
     ];
 
     // The "continuous learning from history" behavior is fulfilled intrinsically by the frontend passing the entire updated `messages` array history back to the LLM context continuously.
-    const chatCompletion = await groq.chat.completions.create({
+    const chatCompletion = await getGroq().chat.completions.create({
       messages: requestMessages,
       model: "llama-3.3-70b-versatile",
       temperature: 0.3, // Slightly higher temperature to allow natural conversation but low enough for JSON and rigid fallback compliance
@@ -82,8 +89,4 @@ const getChatCompletion = async (messages) => {
 
 module.exports = {
   getChatCompletion,
-<<<<<<< HEAD
 };
-=======
-};
->>>>>>> 7bb82d22ac95cc74b6c54273783ab9af5d4ffe3d

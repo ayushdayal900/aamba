@@ -13,8 +13,8 @@ interface ITrustScoreRegistry {
 contract LoanAgreement is ReentrancyGuard {
 
     // ── Constants & Enums ──────────────────────────────────────────────────────
-    uint256 public constant REPAYMENT_INTERVAL = 30 days;
-    uint256 public constant GRACE_PERIOD       = 5 days;
+    uint256 public constant REPAYMENT_INTERVAL = 3 minutes;
+    uint256 public constant GRACE_PERIOD       = 1 minutes;
     uint256 public constant PENALTY_POINTS     = 50;
 
     enum LoanStatus { Active, Completed, Defaulted }

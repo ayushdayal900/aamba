@@ -4,9 +4,14 @@ const router = express.Router();
 const Groq = require("groq-sdk");
 const chatController = require("../controllers/chatController");
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
+let _groq = null;
+function getGroq() {
+  if (!_groq) {
+    if (!process.env.GROQ_API_KEY) throw new Error("GROQ_API_KEY not set");
+    _groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+  }
+  return _groq;
+}
 
 // System prompt encapsulating bot instructions
 const SYSTEM_PROMPT = `You are a helpful and knowledgeable SupportBot for Aamba, a microfinance platform.
@@ -54,7 +59,7 @@ CRITICAL LANGUAGE INSTRUCTION:
       })),
     ];
 
-    const chatCompletion = await groq.chat.completions.create({
+    const chatCompletion = await getGroq().chat.completions.create({
       messages: requestMessages,
       model: "llama-3.3-70b-versatile", // Fast model suitable for support bots
       temperature: 0.5,
@@ -73,8 +78,4 @@ CRITICAL LANGUAGE INSTRUCTION:
   }
 });
 
-<<<<<<< HEAD
 module.exports = router;
-=======
-module.exports = router;
->>>>>>> 7bb82d22ac95cc74b6c54273783ab9af5d4ffe3d

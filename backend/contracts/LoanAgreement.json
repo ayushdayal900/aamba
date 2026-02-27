@@ -190,6 +190,25 @@
     "type": "event"
   },
   {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "borrower",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "enum LoanAgreement.LoanMode",
+        "name": "mode",
+        "type": "uint8"
+      }
+    ],
+    "name": "LoanModeSelected",
+    "type": "event"
+  },
+  {
     "inputs": [],
     "name": "GRACE_PERIOD",
     "outputs": [
