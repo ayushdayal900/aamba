@@ -57,7 +57,7 @@ const SignIn = () => {
         try {
             const response = await axios.post('http://localhost:5000/auth/verify-otp', { email, otp });
             if (response.data.verified) {
-                toast.success('Identity Anchor Verified!', { id: tid });
+                toast.success('Aadhar Card Number Verified!', { id: tid });
                 setEmailVerified(true);
             } else {
                 toast.error(response.data.message || 'Invalid code', { id: tid });

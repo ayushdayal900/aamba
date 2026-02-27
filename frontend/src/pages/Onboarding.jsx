@@ -370,7 +370,7 @@ const Onboarding = () => {
                     {/* IDENTITY */}
                     {currentStep === 3 && (
                         <motion.div key="s3" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="max-w-md mx-auto w-full">
-                            <h2 className="text-3xl md:text-4xl font-black text-white mb-2 text-center tracking-tighter italic">Identity Anchor</h2>
+                            <h2 className="text-3xl md:text-4xl font-black text-white mb-2 text-center tracking-tighter italic">Aadhar Card Number</h2>
                             <p className="text-sm md:text-base text-slate-500 font-medium text-center mb-10 md:mb-12">We use decentralized verification to issuance your Soulbound ID.</p>
                             <form onSubmit={handleAadhaarSubmit} className="space-y-6 md:space-y-8">
                                 <div className="premium-card !p-8 md:!p-10">
