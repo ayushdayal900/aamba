@@ -24,7 +24,18 @@ if (typeof window !== 'undefined') {
 }
 
 import { aambaWallet } from './wallets/aambaWallet';
-import { metaMaskWallet, walletConnectWallet } from '@rainbow-me/rainbowkit/wallets';
+import { injectedWallet, metaMaskWallet, walletConnectWallet } from '@rainbow-me/rainbowkit/wallets';
+
+// ── AWS Amplify (for Face Liveness guest credentials) ──────────────────────
+import { Amplify } from 'aws-amplify';
+Amplify.configure({
+  Auth: {
+    Cognito: {
+      identityPoolId: import.meta.env.VITE_COGNITO_IDENTITY_POOL_ID,
+      allowGuestAccess: true,
+    },
+  },
+});
 
 const config = getDefaultConfig({
   appName: 'MicroFin',
@@ -38,7 +49,7 @@ const config = getDefaultConfig({
     },
     {
       groupName: 'Other Providers',
-      wallets: [metaMaskWallet, walletConnectWallet],
+      wallets: [injectedWallet, metaMaskWallet, walletConnectWallet],
     },
   ],
 });

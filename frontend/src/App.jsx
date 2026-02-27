@@ -10,6 +10,7 @@ import LandingPage from './pages/LandingPage';
 import SignIn from './pages/SignIn';
 import Signup from './pages/Signup';
 import HowItWorks from './pages/HowItWorks';
+import LivenessVerification from './pages/LivenessVerification';
 import { useAuth } from './context/AuthContext';
 import { useAccount } from 'wagmi';
 import { checkIdentityOwnership } from './blockchainService';
@@ -83,7 +84,14 @@ function App() {
           <Route
             path="/onboarding"
             element={
-              isAuthenticated ? (
+              combinedLoading ? (
+                <div className="min-h-screen bg-fintech-dark flex justify-center items-center text-white">
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-fintech-accent border-t-transparent rounded-full animate-spin"></div>
+                    <span className="animate-pulse tracking-widest uppercase text-xs font-bold text-slate-500">Protocol Synchronizing...</span>
+                  </div>
+                </div>
+              ) : isAuthenticated ? (
                 isOnboarded ? (
                   <Navigate to="/dashboard" replace />
                 ) : (
@@ -154,6 +162,19 @@ function App() {
                 loading={combinedLoading}
               >
                 <HowItWorks />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/liveness"
+            element={
+              <ProtectedRoute
+                isAuthenticated={isAuthenticated}
+                walletConnected={walletConnected}
+                loading={combinedLoading}
+              >
+                <LivenessVerification />
               </ProtectedRoute>
             }
           />
