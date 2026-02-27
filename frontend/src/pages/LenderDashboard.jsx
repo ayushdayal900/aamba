@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
-import axios from 'axios';
+import { useAuth, api } from '../context/AuthContext';
 import { ethers } from 'ethers';
 import { useAccount, useConfig, useWalletClient } from 'wagmi';
 import { useNavigate } from 'react-router-dom';
@@ -127,8 +126,8 @@ const LenderDashboard = () => {
         if (!token && !userProfile?.token) return;
         setUpcomingLoading(true);
         try {
-            const res = await axios.get('http://localhost:5000/api/loans/lender/upcoming-payments', {
-                headers: { Authorization: `Bearer ${token || userProfile.token}` }
+            const res = await api.get('/loans/lender/upcoming-payments', {
+                params: { walletAddress } // Pass the currently active Wagmi wallet
             });
             if (res.data.success) {
                 setUpcomingPayments(res.data.data);
@@ -159,9 +158,7 @@ const LenderDashboard = () => {
         setClaimingFaucet(true);
         const tid = toast.loading('Claiming testnet tUSDT...');
         try {
-            const res = await axios.post('http://localhost:5000/api/faucet/claim', {}, {
-                headers: { Authorization: `Bearer ${token || userProfile.token}` }
-            });
+            const res = await api.post('/faucet/claim', {});
             if (res.data.success) {
                 toast.success('1000 tUSDT credited to your wallet', { id: tid });
                 fetchBalance();
@@ -297,37 +294,104 @@ const LenderDashboard = () => {
 
     const fetchLoans = async () => {
         setLoading(true);
+
+        // ── Structured diagnostics ─────────────────────────────────────────
+        console.group('[Sync Protocol] Starting marketplace sync...');
+        console.log('  Wallet address :', walletAddress || '(not connected)');
+        console.log('  Chain ID       :', chainId || '(unknown)');
+        console.log('  Network        :', chainId === 11155111 ? 'Sepolia ✅' : `Wrong network ⚠️ (chainId=${chainId})`);
+        console.log('  Factory addr   :', addresses.loanFactory || '(not set)');
+        console.log('  TrustScore addr:', addresses.trustScore || '(not set)');
+
         try {
-            const res = await axios.get('http://localhost:5000/api/loans');
-            if (res.data.success) {
-                const loanData = res.data.data;
-                const provider = new ethers.JsonRpcProvider("https://ethereum-sepolia-rpc.publicnode.com");
+            // 1. Fetch pending loans from backend ─────────────────────────
+            let res;
+            try {
+                res = await api.get('/loans');
+                console.log('  Backend status :', res.status);
+                console.log('  Loans count    :', res.data?.count ?? 0);
+            } catch (backendErr) {
+                const isNetworkErr = !backendErr.response;
+                const specificMsg = isNetworkErr
+                    ? 'Backend offline — cannot reach http://localhost:5000'
+                    : `Backend error ${backendErr.response?.status}: ${backendErr.response?.data?.message || backendErr.message}`;
+                console.error('  [Sync] Backend request failed:', specificMsg, backendErr);
+                toast.error(specificMsg);
+                return;
+            }
 
-                // Verify TrustScore contract code exists
-                const code = await provider.getCode(addresses.trustScore);
-                const hasRegistry = (code !== "0x" && code !== "0x0");
+            if (!res.data?.success) {
+                const msg = res.data?.message || 'Backend returned an unsuccessful response';
+                console.error('  [Sync] Unsuccessful response body:', res.data);
+                toast.error(msg);
+                return;
+            }
 
-                const trustRegistry = hasRegistry ? new ethers.Contract(addresses.trustScore, trustScoreAbi, provider) : null;
+            const loanData = res.data.data ?? [];
 
-                const enhancedLoans = await Promise.all(loanData.map(async (loan) => {
+            // 2. Safe: Try to enrich with on-chain trust score ────────────
+            //    Wrapped entirely so any RPC failure never kills the sync.
+            let hasRegistry = false;
+            let trustRegistry = null;
+
+            try {
+                const provider = new ethers.JsonRpcProvider('https://ethereum-sepolia-rpc.publicnode.com');
+                const blockNum = await Promise.race([
+                    provider.getBlockNumber(),
+                    new Promise((_, rej) => setTimeout(() => rej(new Error('RPC timeout')), 8000))
+                ]);
+                console.log('  RPC block num  :', blockNum);
+
+                if (addresses.trustScore) {
+                    const code = await provider.getCode(addresses.trustScore).catch(() => '0x');
+                    hasRegistry = (code !== '0x' && code !== '0x0');
+                    console.log('  TrustScore code:', hasRegistry ? 'deployed ✅' : 'not deployed / empty ⚠️');
+
+                    if (hasRegistry) {
+                        trustRegistry = new ethers.Contract(addresses.trustScore, trustScoreAbi, provider);
+                    }
+                } else {
+                    console.warn('  [Sync] trustScore address not set in addresses.json — skipping on-chain enrichment');
+                }
+            } catch (rpcErr) {
+                console.warn('  [Sync] On-chain enrichment skipped (RPC issue):', rpcErr.message);
+                // Non-fatal — continue with off-chain trust scores from DB
+            }
+
+            // 3. Enrich each loan (never throw) ───────────────────────────
+            const enhancedLoans = await Promise.all(
+                loanData.map(async (loan) => {
                     try {
                         if (hasRegistry && trustRegistry && loan.borrower?.walletAddress) {
                             const onChainScore = await trustRegistry.getTrustScore(loan.borrower.walletAddress);
                             return { ...loan, onChainTrustScore: Number(onChainScore) };
                         }
-                    } catch (e) {
-                        console.warn("Failed to fetch on-chain score", e);
+                    } catch (enrichErr) {
+                        console.warn('  [Sync] Failed to fetch on-chain score for', loan.borrower?.walletAddress, enrichErr.message);
                     }
-                    return { ...loan, onChainTrustScore: loan.borrower?.trustScore || 0 };
-                }));
-                setLoans(enhancedLoans);
-            }
+                    // Fall back to off-chain score stored in MongoDB
+                    return { ...loan, onChainTrustScore: loan.borrower?.trustScore ?? 0 };
+                })
+            );
+
+            console.log('  Enhanced loans :', enhancedLoans.length);
+            console.groupEnd();
+
+            setLoans(enhancedLoans); // empty array is valid — no error toast
+
         } catch (error) {
-            toast.error("Failed to sync marketplace");
+            // Catch-all: should rarely hit here now since each layer has its own guard
+            const specificMsg = error?.response?.data?.message
+                || error?.message
+                || 'Unknown sync error';
+            console.error('[Sync Protocol] Unhandled error:', specificMsg, error);
+            console.groupEnd();
+            toast.error(`Sync failed: ${specificMsg}`);
         } finally {
             setLoading(false);
         }
     };
+
 
     const handleFundLoan = async (loanId, smartContractId, borrowerWallet, amount, interestRate, durationMonths) => {
         if (!isConnected) return toast.error("Please connect wallet");
@@ -366,10 +430,8 @@ const LenderDashboard = () => {
             await tx.wait();
 
             toast.loading('Synchronizing state...', { id: tid });
-            await axios.put(`http://localhost:5000/api/loans/${loanId}/fund`, {
+            await api.put(`/loans/${loanId}/fund`, {
                 lenderId: userProfile._id
-            }, {
-                headers: { Authorization: `Bearer ${token || userProfile.token}` }
             });
 
             toast.success('Capital deployed successfully!', { id: tid });
@@ -424,15 +486,25 @@ const LenderDashboard = () => {
                 ) : hasIdentity ? (
                     <>
                         {/* Pill 1: Verified SBT */}
-                        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 shadow-[0_0_12px_rgba(16,185,129,0.08)] transition-all">
+                        <a
+                            href={`https://sepolia.etherscan.io/token/${addresses.identity}?a=${walletAddress}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 shadow-[0_0_12px_rgba(16,185,129,0.08)] hover:bg-emerald-500/20 hover:scale-[1.02] transition-all cursor-pointer"
+                        >
                             <FiCheckCircle size={12} className="text-emerald-400" />
                             <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400">Verified SBT</span>
-                        </div>
+                        </a>
                         {/* Pill 2: Authorized Node — SBT holder = authorized protocol participant */}
-                        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/25 shadow-[0_0_12px_rgba(59,130,246,0.08)] transition-all">
+                        <a
+                            href={`https://sepolia.etherscan.io/address/${walletAddress}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/25 shadow-[0_0_12px_rgba(59,130,246,0.08)] hover:bg-blue-500/20 hover:scale-[1.02] transition-all cursor-pointer"
+                        >
                             <FiShield size={12} className="text-blue-400" />
                             <span className="text-[9px] font-black uppercase tracking-widest text-blue-400">Authorized Node</span>
-                        </div>
+                        </a>
                     </>
                 ) : (
                     /* Red pill: Not verified */

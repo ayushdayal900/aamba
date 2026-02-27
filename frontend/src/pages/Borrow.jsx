@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAccount, useWalletClient } from 'wagmi';
 import { ethers } from 'ethers';
+import { api } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import {
     FiTrendingUp, FiShield, FiArrowRight, FiLoader,
-    FiCheckCircle, FiAlertCircle, FiSend, FiInfo
+    FiCheckCircle, FiAlertCircle, FiSend, FiInfo, FiLock, FiUnlock, FiAward
 } from 'react-icons/fi';
+import { useAuth } from '../context/AuthContext';
 import { checkIdentityOwnership, parseBlockchainError } from '../blockchainService';
 import addresses from '../contracts/addresses.json';
 import _factoryJson from '../contracts/LoanAgreementFactory.json';
@@ -15,15 +17,84 @@ import _usdtJson from '../contracts/MockUSDT.json';
 const factoryAbi = Array.isArray(_factoryJson) ? _factoryJson : _factoryJson.abi;
 const usdtAbi = Array.isArray(_usdtJson) ? _usdtJson : _usdtJson.abi;
 
+// ─── Trust Score Banner ──────────────────────────────────────────────────────
+const TrustScoreBanner = ({ trustScore, completedLoans }) => {
+    const ETH_THRESHOLD = 700;
+    const progress = Math.min(100, Math.max(0, ((trustScore - 300) / (ETH_THRESHOLD - 300)) * 100));
+    const isEligible = completedLoans >= 1 && trustScore >= ETH_THRESHOLD;
+
+    const getTier = (score) => {
+        if (score >= 850) return { label: 'Prime', color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' };
+        if (score >= 700) return { label: 'Trusted', color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/20' };
+        if (score >= 500) return { label: 'Building Credit', color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/20' };
+        return { label: 'New Borrower', color: 'text-slate-400', bg: 'bg-slate-800/50 border-slate-700/30' };
+    };
+
+    const tier = getTier(trustScore);
+
+    return (
+        <div className="premium-card !p-6 md:!p-8 border-l-4 border-l-blue-500/50 mb-8">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-500 shrink-0">
+                        <FiAward size={24} />
+                    </div>
+                    <div>
+                        <p className="text-[9px] uppercase font-black text-slate-500 tracking-widest mb-1">Trust Score</p>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-4xl font-black text-white italic tracking-tighter">{trustScore}</span>
+                            <span className={`text-xs font-black uppercase tracking-widest px-2 py-0.5 rounded-md border ${tier.bg} ${tier.color}`}>
+                                {tier.label}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex-1 max-w-xs">
+                    <div className="flex justify-between items-center mb-2">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">ETH Unlock Progress</p>
+                        <p className="text-[9px] font-black text-slate-400">{trustScore} / {ETH_THRESHOLD}</p>
+                    </div>
+                    <div className="h-2 bg-slate-900 rounded-full overflow-hidden">
+                        <div
+                            className="h-full rounded-full transition-all duration-700"
+                            style={{
+                                width: `${progress}%`,
+                                background: isEligible
+                                    ? 'linear-gradient(90deg, #22c55e, #10b981)'
+                                    : 'linear-gradient(90deg, #3b82f6, #6366f1)'
+                            }}
+                        />
+                    </div>
+                    <div className="flex justify-between mt-1.5">
+                        <span className="text-[8px] text-slate-600 font-bold">300</span>
+                        <span className={`text-[8px] font-bold ${isEligible ? 'text-emerald-500' : 'text-blue-500'}`}>
+                            {isEligible ? '🔓 ETH Unlocked' : `${ETH_THRESHOLD} — Unlock ETH`}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="text-right">
+                    <p className="text-[9px] uppercase font-black text-slate-500 tracking-widest mb-1">Completed Loans</p>
+                    <p className="text-2xl font-black text-white italic tracking-tighter">{completedLoans}</p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // ─── Loan Request Form ──────────────────────────────────────────────────────
-const LoanRequestForm = ({ walletAddress, walletClient }) => {
+const LoanRequestForm = ({ walletAddress, walletClient, userProfile, trustScore, completedLoans }) => {
     const [principal, setPrincipal] = useState('');
     const [totalRepayment, setTotalRepayment] = useState('');
     const [duration, setDuration] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
 
-    const [loanMode, setLoanMode] = useState(0); // 0: ETH, 1: ERC20
+    // ETH eligibility check
+    const canUseEth = completedLoans >= 1 && trustScore >= 700;
+
+    const [loanMode, setLoanMode] = useState(1); // Always default ERC20; only allow ETH if eligible
     const [tokenSymbol, setTokenSymbol] = useState('...');
     const [tokenDecimals, setTokenDecimals] = useState(18);
 
@@ -80,6 +151,12 @@ const LoanRequestForm = ({ walletAddress, walletClient }) => {
             return;
         }
 
+        // Extra guard — backend will enforce but we give friendly feedback first
+        if (loanMode === 0 && !canUseEth) {
+            toast.error('ETH loans require Trust Score ≥ 700 and 1 completed loan.');
+            return;
+        }
+
         const tid = toast.loading('Preparing loan ad...');
         setSubmitting(true);
         try {
@@ -94,7 +171,20 @@ const LoanRequestForm = ({ walletAddress, walletClient }) => {
             const tx = await factory.createLoanRequestWithMode(principalWei, repaymentWei, durationMonths, loanMode);
 
             toast.loading('Broadcasting to Sepolia...', { id: tid });
-            await tx.wait();
+            const receipt = await tx.wait();
+
+            toast.loading('Syncing ad with protocol...', { id: tid });
+
+            // Sync with backend API to display on dashboard immediately
+            await api.post('/loans', {
+                borrowerId: userProfile._id,
+                amountRequested: Number(principal),
+                interestRate: impliedAPR ? Number(impliedAPR) : 10,
+                durationMonths: durationMonths,
+                purpose: loanMode === 0 ? "ETH Request" : "ERC20 Request",
+                txHash: receipt.hash,
+                loanMode: loanMode
+            });
 
             toast.success('Loan ad posted on-chain! Lenders can now fund it.', { id: tid });
             setSubmitted(true);
@@ -137,14 +227,9 @@ const LoanRequestForm = ({ walletAddress, walletClient }) => {
                 </div>
             )}
 
-            <div className="flex bg-slate-900 rounded-xl p-1 mb-6 border border-slate-800">
-                <button
-                    type="button"
-                    onClick={() => setLoanMode(0)}
-                    className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${loanMode === 0 ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}
-                >
-                    ETH
-                </button>
+            {/* ── Loan Mode Selector ─────────────────────────────────────── */}
+            <div className="flex bg-slate-900 rounded-xl p-1 mb-4 border border-slate-800">
+                {/* ERC20 always available */}
                 <button
                     type="button"
                     onClick={() => setLoanMode(1)}
@@ -152,8 +237,43 @@ const LoanRequestForm = ({ walletAddress, walletClient }) => {
                 >
                     ERC20 {tokenSymbol !== '...' ? `(${tokenSymbol})` : ''}
                 </button>
+                {/* ETH — locked unless eligible */}
+                <button
+                    type="button"
+                    onClick={() => {
+                        if (!canUseEth) return; // silently ignore — tooltip message below
+                        setLoanMode(0);
+                    }}
+                    disabled={!canUseEth}
+                    className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1.5
+                        ${loanMode === 0 ? 'bg-blue-600 text-white shadow-lg' : !canUseEth ? 'text-slate-700 cursor-not-allowed' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}
+                >
+                    {canUseEth ? <FiUnlock size={11} /> : <FiLock size={11} />} ETH
+                </button>
             </div>
 
+            {/* ── ETH Lock Explanation ───────────────────────────────────── */}
+            {!canUseEth && (
+                <div className="flex items-start gap-3 bg-slate-800/50 border border-slate-700/30 rounded-xl px-4 py-3 mb-6">
+                    <FiLock className="text-slate-500 shrink-0 mt-0.5" size={13} />
+                    <div>
+                        {completedLoans === 0 ? (
+                            <p className="text-[11px] text-slate-400 font-bold leading-relaxed">
+                                First loan must use <span className="text-emerald-400">ERC20</span> (Autopay mandatory).
+                                Complete your first loan to unlock ETH mode.
+                            </p>
+                        ) : (
+                            <p className="text-[11px] text-slate-400 font-bold leading-relaxed">
+                                Unlock ETH loans at <span className="text-blue-400">Trust Score 700</span>.
+                                Your current score: <span className="text-white font-black">{trustScore}</span>
+                                {' '}(<span className="text-blue-400">{700 - trustScore} more needed</span>).
+                            </p>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* ── Active Mode Info ───────────────────────────────────────── */}
             {loanMode === 0 ? (
                 <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 mb-6">
                     <FiAlertCircle className="text-amber-500 shrink-0 mt-0.5" />
@@ -261,9 +381,41 @@ const Borrow = () => {
     const navigate = useNavigate();
     const { address: walletAddress } = useAccount();
     const { data: walletClient } = useWalletClient();
+    const { userProfile, token } = useAuth();
 
     const [isVerified, setIsVerified] = useState(false);
     const [checking, setChecking] = useState(true);
+
+    // Trust score state
+    const [trustData, setTrustData] = useState({ trustScore: 300, completedLoans: 0 });
+    const [trustLoading, setTrustLoading] = useState(true);
+
+    // Fetch trust data from backend
+    useEffect(() => {
+        const fetchTrustData = async () => {
+            if (!userProfile) { setTrustLoading(false); return; }
+            setTrustLoading(true);
+            try {
+                const res = await api.get('/users/me');
+                if (res.data.success) {
+                    setTrustData({
+                        trustScore: res.data.data.trustScore ?? 300,
+                        completedLoans: res.data.data.completedLoans ?? 0,
+                    });
+                }
+            } catch (err) {
+                console.error('[Borrow] Failed to fetch trust data:', err.message);
+                // Fall back to cached value in userProfile
+                setTrustData({
+                    trustScore: userProfile.trustScore ?? 300,
+                    completedLoans: userProfile.completedLoans ?? 0,
+                });
+            } finally {
+                setTrustLoading(false);
+            }
+        };
+        fetchTrustData();
+    }, [userProfile, token]);
 
     useEffect(() => {
         const checkNFT = async () => {
@@ -333,7 +485,7 @@ const Borrow = () => {
                 </div>
             )}
 
-            {/* Verified — show form */}
+            {/* Verified — show trust banner + form */}
             {!checking && isVerified && (
                 <div className="space-y-8">
                     <div className="flex items-center gap-3 bg-emerald-500/5 border border-emerald-500/20 px-5 py-3 rounded-2xl w-fit">
@@ -341,7 +493,21 @@ const Borrow = () => {
                         <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Identity Verified — Credit Profile Active</span>
                     </div>
 
-                    <LoanRequestForm walletAddress={walletAddress} walletClient={walletClient} />
+                    {/* Trust Score Banner */}
+                    {!trustLoading && (
+                        <TrustScoreBanner
+                            trustScore={trustData.trustScore}
+                            completedLoans={trustData.completedLoans}
+                        />
+                    )}
+
+                    <LoanRequestForm
+                        walletAddress={walletAddress}
+                        walletClient={walletClient}
+                        userProfile={userProfile}
+                        trustScore={trustData.trustScore}
+                        completedLoans={trustData.completedLoans}
+                    />
                 </div>
             )}
         </div>

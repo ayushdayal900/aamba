@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
-import axios from 'axios';
+import { useAuth, api } from '../context/AuthContext';
 import { ethers } from 'ethers';
 import { useAccount, useConfig, useWalletClient } from 'wagmi';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { FiLoader, FiCheckCircle, FiInfo, FiActivity, FiShield, FiPlus, FiCalendar, FiTrendingUp, FiAlertCircle } from 'react-icons/fi';
+import { FiLoader, FiCheckCircle, FiInfo, FiActivity, FiShield, FiPlus, FiCalendar, FiTrendingUp, FiAlertCircle, FiChevronDown, FiChevronUp, FiAward } from 'react-icons/fi';
 
 
 import addresses from '../contracts/addresses.json';
@@ -46,6 +45,37 @@ const BorrowerDashboard = () => {
     const [payingInstallment, setPayingInstallment] = useState(null);
     const [myAds, setMyAds] = useState([]);
     const [myAdsLoading, setMyAdsLoading] = useState(false);
+
+    // Trust score data (from backend /me endpoint)
+    const [trustData, setTrustData] = useState({
+        trustScore: userProfile?.trustScore ?? 300,
+        completedLoans: userProfile?.completedLoans ?? 0,
+        trustHistory: []
+    });
+    const [showTrustHistory, setShowTrustHistory] = useState(false);
+
+    const getTrustTier = (score) => {
+        if (score >= 850) return { label: 'Prime', color: 'text-emerald-400' };
+        if (score >= 700) return { label: 'Trusted', color: 'text-blue-400' };
+        if (score >= 500) return { label: 'Building Credit', color: 'text-amber-400' };
+        return { label: 'New Borrower', color: 'text-slate-500' };
+    };
+
+    const fetchTrustData = async () => {
+        if (!token && !userProfile?.token) return;
+        try {
+            const res = await api.get('/users/me');
+            if (res.data.success) {
+                setTrustData({
+                    trustScore: res.data.data.trustScore ?? 300,
+                    completedLoans: res.data.data.completedLoans ?? 0,
+                    trustHistory: res.data.data.trustHistory ?? [],
+                });
+            }
+        } catch (err) {
+            console.error('[BorrowerDashboard] Failed to fetch trust data:', err.message);
+        }
+    };
 
 
     const checkContractSync = async () => {
@@ -100,6 +130,7 @@ const BorrowerDashboard = () => {
             fetchMyLoans();
             fetchMyAds();
             checkContractSync();
+            fetchTrustData();
         }
 
         // Event listeners for real-time updates
@@ -333,9 +364,7 @@ const BorrowerDashboard = () => {
 
     const fetchMyLoans = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/loans/my', {
-                headers: { Authorization: `Bearer ${token || userProfile.token}` }
-            });
+            const res = await api.get('/loans/my');
             if (res.data.success) {
                 setMyLoans(res.data.data);
             }
@@ -348,9 +377,7 @@ const BorrowerDashboard = () => {
         if (!token && !userProfile?.token) return;
         setMyAdsLoading(true);
         try {
-            const res = await axios.get('http://localhost:5000/api/loans/my-ads', {
-                headers: { Authorization: `Bearer ${token || userProfile.token}` }
-            });
+            const res = await api.get('/loans/my-ads');
             if (res.data.success) {
                 setMyAds(res.data.data);
             }
@@ -389,10 +416,8 @@ const BorrowerDashboard = () => {
             await tx.wait();
 
             toast.loading('Finalizing with protocol...', { id: tid });
-            await axios.put(`http://localhost:5000/api/loans/${loanId}/repay`, {
+            await api.put(`/loans/${loanId}/repay`, {
                 txHash: tx.hash
-            }, {
-                headers: { Authorization: `Bearer ${token || userProfile.token}` }
             });
 
             toast.success('Loan fully repaid! Reputation increased.', { id: tid });
@@ -441,15 +466,13 @@ const BorrowerDashboard = () => {
             await tx.wait();
 
             toast.loading('Syncing proposal state...', { id: tid });
-            await axios.post('http://localhost:5000/api/loans', {
+            await api.post('/loans', {
                 borrowerId: userProfile._id,
                 amountRequested: Number(amount),
                 interestRate: 10,
                 durationMonths: Number(duration),
                 purpose,
                 txHash: tx.hash
-            }, {
-                headers: { Authorization: `Bearer ${token || userProfile.token}` }
             });
 
             toast.success('Proposal live in marketplace!', { id: tid });
@@ -483,13 +506,37 @@ const BorrowerDashboard = () => {
                 {/* Left Column: Metrics & Form */}
                 <div className="space-y-6 md:space-y-8 order-2 lg:order-1">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-6">
+                        {/* ── Protocol Reputation Card ── */}
                         <div className="premium-card !p-8">
-                            <div className="flex items-center gap-3 text-slate-500 mb-6">
-                                <FiActivity className="text-blue-500" />
-                                <span className="text-[9px] uppercase font-black tracking-widest">Protocol Reputation</span>
+                            <div className="flex items-center gap-3 text-slate-500 mb-4">
+                                <FiAward className="text-blue-500" />
+                                <span className="text-[9px] uppercase font-black tracking-widest">Trust Score</span>
                             </div>
-                            <div className="text-5xl md:text-6xl font-black text-white mb-2 tracking-tighter italic">{userProfile?.trustScore || 0}</div>
-                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Calculated On-Chain</p>
+                            <div className="text-5xl md:text-6xl font-black text-white mb-1 tracking-tighter italic">{trustData.trustScore}</div>
+                            <div className="flex items-center gap-2 mb-4">
+                                <span className={`text-[10px] font-black uppercase tracking-widest ${getTrustTier(trustData.trustScore).color}`}>
+                                    {getTrustTier(trustData.trustScore).label}
+                                </span>
+                            </div>
+                            {/* Progress to 700 */}
+                            {trustData.trustScore < 700 && (
+                                <div className="mt-2">
+                                    <div className="flex justify-between text-[8px] text-slate-600 font-bold mb-1">
+                                        <span>Progress to ETH unlock</span>
+                                        <span>{trustData.trustScore} / 700</span>
+                                    </div>
+                                    <div className="h-1.5 bg-slate-900 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-gradient-to-r from-blue-600 to-indigo-500 rounded-full transition-all duration-700"
+                                            style={{ width: `${Math.min(100, ((trustData.trustScore - 300) / 400) * 100)}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                            <div className="mt-4 pt-4 border-t border-slate-900 flex justify-between items-center">
+                                <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest">Completed Loans</span>
+                                <span className="text-lg font-black text-white italic">{trustData.completedLoans}</span>
+                            </div>
                         </div>
 
                         <div className={`premium-card !p-8 border-l-4 ${hasIdentity ? 'border-l-emerald-500/50' : 'border-l-red-500/50'}`}>
@@ -663,8 +710,8 @@ const BorrowerDashboard = () => {
                                 <div className="flex justify-between items-start mb-5">
                                     <span className="text-[9px] font-mono text-slate-500 font-black uppercase tracking-widest">Ad #{ad.adId}</span>
                                     <span className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${ad.status === 'Funded'
-                                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                            : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                        : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
                                         }`}>
                                         {ad.status}
                                     </span>
@@ -693,8 +740,8 @@ const BorrowerDashboard = () => {
 
                                 {/* Mode badge */}
                                 <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest ${ad.loanMode === 'ETH'
-                                        ? 'bg-blue-500/5 border border-blue-500/15 text-blue-400'
-                                        : 'bg-emerald-500/5 border border-emerald-500/15 text-emerald-400'
+                                    ? 'bg-blue-500/5 border border-blue-500/15 text-blue-400'
+                                    : 'bg-emerald-500/5 border border-emerald-500/15 text-emerald-400'
                                     }`}>
                                     <div className={`w-1.5 h-1.5 rounded-full ${ad.loanMode === 'ETH' ? 'bg-blue-500' : 'bg-emerald-500'}`} />
                                     {ad.loanMode === 'ETH' ? 'Native ETH' : 'ERC20 (tUSDT)'}
@@ -915,6 +962,66 @@ const BorrowerDashboard = () => {
                     )}
                 </section>
             )}
+            {/* ── Trust Score History Section ── */}
+            <section className="mt-16 pt-16 border-t border-slate-900">
+                <button
+                    onClick={() => setShowTrustHistory(v => !v)}
+                    className="w-full flex items-center justify-between px-2 pb-6 group"
+                >
+                    <div>
+                        <h2 className="text-2xl md:text-3xl font-black text-white italic tracking-tighter flex items-center gap-3">
+                            <FiAward className="text-blue-500" /> Trust Score History
+                        </h2>
+                        <p className="text-xs text-slate-500 font-medium mt-1">Full audit trail of your reputation updates.</p>
+                    </div>
+                    <div className="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-lg text-slate-400 group-hover:text-white transition-colors">
+                        <span className="text-[10px] font-black uppercase tracking-widest">{showTrustHistory ? 'Collapse' : 'Expand'}</span>
+                        {showTrustHistory ? <FiChevronUp size={14} /> : <FiChevronDown size={14} />}
+                    </div>
+                </button>
+
+                {showTrustHistory && (
+                    <div>
+                        {trustData.trustHistory.length === 0 ? (
+                            <div className="premium-card py-12 text-center border-2 border-dashed border-slate-900">
+                                <p className="text-slate-600 font-bold italic">No trust score history yet.</p>
+                                <p className="text-slate-700 text-sm font-medium mt-1">Complete KYC, mint your SBT, and repay loans to build history.</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {trustData.trustHistory.map((entry, idx) => (
+                                    <div
+                                        key={idx}
+                                        className={`flex items-center justify-between px-5 py-4 rounded-xl border ${entry.points >= 0
+                                            ? 'bg-emerald-500/5 border-emerald-500/15'
+                                            : 'bg-red-500/5 border-red-500/15'
+                                            }`}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black ${entry.points >= 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
+                                                }`}>
+                                                {entry.points >= 0 ? '+' : ''}{entry.points}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-black text-white">{entry.action}</p>
+                                                <p className="text-[9px] text-slate-500 font-bold">
+                                                    {new Date(entry.timestamp).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                    {' · '}
+                                                    {new Date(entry.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-0.5">New Score</p>
+                                            <p className="text-lg font-black text-white italic">{entry.newScore}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+            </section>
         </div>
     );
 };

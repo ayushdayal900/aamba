@@ -1,6 +1,6 @@
 const LoanRequest = require('../models/LoanRequest');
 const User = require('../models/User');
-const { updateTrustScore } = require('../services/blockchainService');
+const trustScore = require('../services/trustScoreService');
 const { ethers } = require('ethers');
 const fs = require('fs');
 const path = require('path');
@@ -16,7 +16,7 @@ const backendAddresses = JSON.parse(fs.readFileSync(path.join(__dirname, '../con
 // @route   POST /api/loans
 exports.createLoanRequest = async (req, res) => {
     try {
-        const { borrowerId, amountRequested, interestRate, durationMonths, purpose } = req.body;
+        let { borrowerId, amountRequested, interestRate, durationMonths, purpose, loanMode } = req.body;
 
         // Verify user is an authorized borrower with an NFT
         const user = await User.findById(borrowerId);
@@ -27,14 +27,45 @@ exports.createLoanRequest = async (req, res) => {
             return res.status(403).json({ message: 'You must complete KYC and mint an Identity NFT first' });
         }
 
+        // ── ETH Loan Eligibility Gate (server-side, cannot be bypassed) ──
+        // Interpret loanMode: 0 = ETH, 1 = ERC20.  Default to ERC20 for safety.
+        loanMode = Number(loanMode ?? 1);
+
+        if (user.completedLoans < 1) {
+            // First-time borrowers MUST use ERC20 (autopay mandatory)
+            if (loanMode === 0) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Complete at least 1 loan before accessing ETH loans.'
+                });
+            }
+            loanMode = 1; // Force ERC20 regardless of what was submitted
+        } else if (loanMode === 0) {
+            // Returning borrower requesting ETH loan — check trust score
+            if ((user.trustScore ?? 300) < 700) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Trust Score must be 700+ to unlock ETH loans.'
+                });
+            }
+        }
+
         const loan = await LoanRequest.create({
             borrower: borrowerId,
             amountRequested,
             interestRate,
             durationMonths,
             purpose,
+            loanMode,
             status: 'Pending'
         });
+
+        console.log(JSON.stringify({
+            event: 'LoanCreated',
+            loanId: loan._id.toString(),
+            borrower: user.walletAddress || borrowerId,
+            loanMode: loanMode === 0 ? 'ETH' : 'ERC20'
+        }));
 
         res.status(201).json({ success: true, data: loan });
     } catch (error) {
@@ -46,14 +77,33 @@ exports.createLoanRequest = async (req, res) => {
 // @route   GET /api/loans
 exports.getPendingLoans = async (req, res) => {
     try {
-        const loans = await LoanRequest.find({ status: 'Pending' })
-            .populate('borrower', 'trustScore walletAddress'); // Only send necessary borrower data
+        // Validate MongoDB connection state
+        const mongoose = require('mongoose');
+        const dbState = mongoose.connection.readyState;
+        // 0=disconnected, 1=connected, 2=connecting, 3=disconnecting
+        if (dbState !== 1) {
+            const states = { 0: 'Disconnected', 2: 'Connecting', 3: 'Disconnecting' };
+            console.error('[getPendingLoans] MongoDB not ready. State:', states[dbState] || dbState);
+            return res.status(503).json({
+                success: false,
+                message: `MongoDB not connected (state: ${states[dbState] || dbState}). Check your MONGO_URI.`
+            });
+        }
 
+        const loans = await LoanRequest.find({ status: 'Pending' })
+            .populate('borrower', 'trustScore walletAddress');
+
+        console.log(`[getPendingLoans] Returning ${loans.length} pending loan(s)`);
         res.status(200).json({ success: true, count: loans.length, data: loans });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error('[getPendingLoans] Error:', error.message);
+        res.status(500).json({
+            success: false,
+            message: `Failed to fetch loans: ${error.message}`
+        });
     }
 };
+
 
 // @desc    Accept and fund a loan request (Lender Action)
 // @route   PUT /api/loans/:id/fund
@@ -85,14 +135,9 @@ exports.fundLoan = async (req, res) => {
         // ── Trust Score: Lender gets +50 for first loan funded, +10 for subsequent ──
         try {
             const lenderLoanCount = await LoanRequest.countDocuments({ lender: lenderId, status: { $in: ['Funded', 'Repaid'] } });
-            // lenderLoanCount is now 1+ (current loan is already saved as Funded)
             const isFirstFund = lenderLoanCount === 1;
             const scoreChange = isFirstFund ? 50 : 10;
-            const reason = 'Funded a Loan';
-            await updateTrustScore(lenderId, scoreChange, reason, loan._id, {
-                loanId: loan._id.toString(),
-                isFirstFund
-            });
+            await trustScore.increaseScore(lenderId, scoreChange, 'Funded a Loan');
             console.log(`[TrustScore] Lender ${lenderId} +${scoreChange} (${isFirstFund ? 'first fund bonus' : 'subsequent fund'})`);
         } catch (tsErr) {
             console.error('[TrustScore] Lender update failed (non-critical):', tsErr.message);
@@ -157,26 +202,32 @@ exports.repayLoan = async (req, res) => {
         loan.repaymentTxHash = txHash || null;
         await loan.save();
 
-        // ── Trust Score: Borrower gets +75 on successful repayment ──
+        // ── Trust Score: full repayment lifecycle ──
         if (loan.borrower && loan.borrower._id) {
             try {
-                const borrowerRepaidCount = await LoanRequest.countDocuments({
-                    borrower: loan.borrower._id,
-                    status: 'Repaid'
-                });
-                // +100 for first repayment (milestone), +75 for subsequent
-                const isFirstRepayment = borrowerRepaidCount === 1;
-                const scoreChange = isFirstRepayment ? 100 : 75;
-                await updateTrustScore(
-                    loan.borrower._id,
-                    scoreChange,
-                    'Successful Repayment',
-                    loan._id,
-                    { txHash, isFirstRepayment, onChainLoanId: loan.simulatedSmartContractId }
-                );
-                console.log(`[TrustScore] Borrower ${loan.borrower._id} +${scoreChange} (${isFirstRepayment ? 'first repayment bonus' : 'subsequent repayment'})`);
+                const borrowerId = loan.borrower._id;
+
+                // Re-fetch borrower to get fresh completedLoans count
+                const borrowerUser = await require('../models/User').findById(borrowerId);
+                if (borrowerUser) {
+                    // 1) First-loan-completed bonus (one-time)
+                    if (borrowerUser.completedLoans === 0) {
+                        await trustScore.increaseScore(borrowerId, 100, trustScore.ACTIONS.FIRST_LOAN_COMPLETED);
+                    }
+
+                    // 2) Increment completedLoans counter
+                    borrowerUser.completedLoans += 1;
+                    await borrowerUser.save();
+
+                    // 3) Standard full-repayment score bump (+75 for subsequent)
+                    if (borrowerUser.completedLoans > 1) {
+                        await trustScore.increaseScore(borrowerId, 75, 'Successful Repayment');
+                    }
+
+                    console.log(`[TrustScore] Borrower ${borrowerId} completedLoans → ${borrowerUser.completedLoans}`);
+                }
             } catch (tsErr) {
-                console.error('[TrustScore] Borrower update failed (non-critical):', tsErr.message);
+                console.error('[TrustScore] Borrower repayment update failed (non-critical):', tsErr.message);
             }
         }
 
@@ -264,7 +315,9 @@ exports.getLenderUpcomingPayments = async (req, res) => {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
 
-        if (!user.walletAddress) {
+        const targetWallet = req.query.walletAddress || user.walletAddress;
+
+        if (!targetWallet) {
             return res.status(200).json({ success: true, count: 0, data: [] });
         }
 
@@ -278,7 +331,8 @@ exports.getLenderUpcomingPayments = async (req, res) => {
         const factory = new ethers.Contract(factoryAddress, factoryAbi, provider);
 
         // Get all agreement contract addresses for this lender
-        const agreementAddresses = await factory.getLenderAgreements(user.walletAddress);
+        const agreementAddresses = await factory.getLenderAgreements(targetWallet);
+        console.log(`[getLenderUpcomingPayments] Lender ${targetWallet} has ${agreementAddresses.length} agreements`);
 
         if (!agreementAddresses || agreementAddresses.length === 0) {
             return res.status(200).json({ success: true, count: 0, data: [] });
@@ -305,12 +359,17 @@ exports.getLenderUpcomingPayments = async (req, res) => {
                     const remainingPayments = Number(status._remainingPayments);
 
                     // Only include active (not completed) agreements with payments still due
-                    if (completed || remainingPayments === 0) return null;
+                    if (completed || remainingPayments === 0) {
+                        console.log(`[getLenderUpcomingPayments] Skipping ${agrAddr} - completed: ${completed}, remaining: ${remainingPayments}`);
+                        return null;
+                    }
 
                     const nextDueTimestamp = Number(status._nextDueTimestamp);
                     const installmentAmount = ethers.formatUnits(status._monthlyPayment, decimals);
                     const isOverdue = status._isOverdue;
                     const missedPayments = Number(status._missedPayments);
+
+                    console.log(`[getLenderUpcomingPayments] Included ${agrAddr}: Due ${nextDueTimestamp}, Amount ${installmentAmount}`);
 
                     return {
                         loanId: agrAddr,                          // agreement contract address acts as unique ID
