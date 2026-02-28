@@ -28,6 +28,8 @@ const replacements = [
     { regex: /className=""/g, replacement: '' }
 ];
 
+// AA
+
 function walkDir(dir) {
     let results = [];
     const list = fs.readdirSync(dir);
