@@ -39,24 +39,21 @@ Amplify.configure({
     },
 });
 
-const chains = [sepolia, mainnet, polygon, optimism, arbitrum, base];
-const projectId = 'b1eef86bafdfb9db1124deb507c6e076';
-
 const config = getDefaultConfig({
     appName: 'MicroFin',
-    projectId,
-    chains,
+    projectId: 'b1eef86bafdfb9db1124deb507c6e076',
+    chains: [sepolia, mainnet, polygon, optimism, arbitrum, base],
     wallets: [
         {
-            groupName: 'PanCred Smart Contract Wallets',
-            wallets: [PanCredWallet()],
+            groupName: 'PanCred Smart Wallets',
+            wallets: [PanCredWallet],
         },
         {
-            groupName: 'Other Providers',
+            groupName: 'Standard Wallets',
             wallets: [
-                injectedWallet({ chains }),
-                metaMaskWallet({ projectId, chains }),
-                walletConnectWallet({ projectId, chains }),
+                injectedWallet,
+                metaMaskWallet,
+                walletConnectWallet,
             ],
         },
     ],
