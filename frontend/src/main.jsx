@@ -7,15 +7,10 @@ import '@rainbow-me/rainbowkit/styles.css';
 import {
     RainbowKitProvider,
     darkTheme,
-    connectorsForWallets
+    getDefaultConfig,
 } from '@rainbow-me/rainbowkit';
-import {
-    injectedWallet,
-    metaMaskWallet,
-    walletConnectWallet
-} from '@rainbow-me/rainbowkit/wallets';
-import { WagmiProvider, createConfig, http } from 'wagmi';
-import { sepolia } from 'wagmi/chains';
+import { WagmiProvider } from 'wagmi';
+import { mainnet, sepolia, polygon, optimism, arbitrum, base } from 'wagmi/chains';
 
 import {
     QueryClientProvider,
@@ -27,8 +22,6 @@ import { Buffer } from 'buffer';
 if (typeof window !== 'undefined') {
     window.Buffer = window.Buffer || Buffer;
 }
-
-import { PanCredWallet } from './wallets/PanCredWallet';
 
 // ── AWS Amplify (for Face Liveness guest credentials) ──────────────────────
 import '@aws-amplify/ui-react/styles.css';
@@ -43,24 +36,13 @@ Amplify.configure({
     },
 });
 
-const projectId = 'b1eef86bafdfb9db1124deb507c6e076';
-
-const connectors = connectorsForWallets([
-    {
-        groupName: 'PanCred Smart Wallets',
-        wallets: [PanCredWallet, injectedWallet, metaMaskWallet, walletConnectWallet],
-    },
-], {
+// Use getDefaultConfig WITHOUT a custom wallets array — let RainbowKit
+// handle its own wallet detection. This avoids the 'b is not a function'
+// crash caused by incorrect wallet factory signatures in production builds.
+const config = getDefaultConfig({
     appName: 'MicroFin',
-    projectId,
-});
-
-const config = createConfig({
-    connectors,
-    chains: [sepolia],
-    transports: {
-        [sepolia.id]: http(),
-    },
+    projectId: 'b1eef86bafdfb9db1124deb507c6e076',
+    chains: [sepolia, mainnet, polygon, optimism, arbitrum, base],
 });
 
 const queryClient = new QueryClient();
@@ -79,7 +61,20 @@ createRoot(document.getElementById('root')).render(
                         fontStack: 'system',
                         overlayBlur: 'small',
                     })}>
-                        <Toaster position="top-right" />
+                        <Toaster position="top-right" toastOptions={{
+                            style: {
+                                background: '#ffffff',
+                                color: '#1e293b',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '12px',
+                                fontSize: '14px',
+                                fontWeight: '500',
+                                padding: '12px 16px',
+                            },
+                            success: { style: { borderLeft: '4px solid #16a34a' } },
+                            error: { style: { borderLeft: '4px solid #dc2626' } },
+                            loading: { style: { borderLeft: '4px solid #2563eb' } },
+                        }} />
                         <App />
                     </RainbowKitProvider>
                 </AuthProvider>
