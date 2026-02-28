@@ -34,7 +34,7 @@ Amplify.configure({
             identityPoolRegion: import.meta.env.VITE_AWS_REGION || 'us-east-1',
         },
     },
-
+// 
     
 });
 
