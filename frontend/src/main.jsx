@@ -35,7 +35,7 @@ Amplify.configure({
         },
     },
 
-    // 
+    
 });
 
 // Use getDefaultConfig WITHOUT a custom wallets array — let RainbowKit
