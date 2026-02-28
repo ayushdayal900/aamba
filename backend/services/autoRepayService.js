@@ -210,24 +210,7 @@ async function processAgreement(loanDoc, agreementAddress) {
             }
         }
 
-        // Notify borrower by email
-        try {
-            const borrowerUser = await User.findById(loanDoc.borrower);
-            if (borrowerUser?.email) {
-                await sendEmail(
-                    borrowerUser.email,
-                    '⚠️  PanCred: Loan Payment Overdue',
-                    `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:32px;">
-                        <h2 style="color:#ef4444;">Payment Missed</h2>
-                        <p>Hi ${borrowerUser.name},</p>
-                        <p>Your scheduled installment of <strong>${needed} tUSDT</strong> could not be processed automatically because you haven't approved enough tokens.</p>
-                        <p>Please visit your dashboard and approve at least <strong>${needed} tUSDT</strong> to the loan agreement contract:</p>
-                        <code style="background:#1e293b;color:#94a3b8;padding:8px 12px;border-radius:6px;display:block;margin:16px 0;word-break:break-all;">${agreementAddress}</code>
-                        <p style="color:#ef4444;font-weight:bold;">Your trust score has been penalised. Act quickly to avoid further penalties.</p>
-                    </div>`
-                );
-            }
-        } catch (_) { /* non-critical */ }
+        // Notify borrower (Email disabled per request)
 
         return;
     }
@@ -361,23 +344,7 @@ async function processAgreement(loanDoc, agreementAddress) {
             }
         }
 
-        // Failure email
-        try {
-            const borrowerUser = await User.findById(loanDoc.borrower);
-            if (borrowerUser?.email) {
-                await sendEmail(
-                    borrowerUser.email,
-                    '❌  PanCred: Automatic Repayment Failed',
-                    `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:32px;">
-                        <h2 style="color:#ef4444;">Auto-Repayment Failed</h2>
-                        <p>Hi ${borrowerUser.name},</p>
-                        <p>Our automation service attempted to process your installment but the transaction failed.</p>
-                        <p><strong>Reason:</strong> ${reason}</p>
-                        <p>Please log in to your dashboard and repay manually to avoid further trust score penalties.</p>
-                    </div>`
-                );
-            }
-        } catch (_) { /* non-critical */ }
+        // Failure notification (Email disabled per request)
     }
 }
 
