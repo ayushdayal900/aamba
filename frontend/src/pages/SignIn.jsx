@@ -76,11 +76,11 @@ const SignIn = () => {
         }
 
         setLoading(true);
-        const tid = toast.loading('Synchronizing with protocol...');
+        const tid = toast.loading('Signing you in...');
         try {
             const result = await login(email, password);
             if (result.success) {
-                toast.success('Authorized. Aligning identity...', { id: tid });
+                toast.success('Signed in successfully!', { id: tid });
 
                 // Check if they need onboarding or can go to dashboard
                 // A user is fully onboarded if their KYC status is 'Verified' in the database
@@ -115,59 +115,60 @@ const SignIn = () => {
     };
 
     return (
-        <div className="min-h-screen bg-card-bg flex flex-col items-center justify-center px-4 md:px-6 relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-                <div className="absolute top-[-10%] left-[-10%] w-[40%] aspect-square rounded-full blur-[120px]"></div>
-                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] aspect-square bg-card-bg rounded-full blur-[120px]"></div>
-            </div>
-
+        <div className="min-h-screen flex flex-col items-center justify-center px-4 md:px-6 relative" style={{ backgroundColor: '#FFFFFF' }}>
             <button
                 onClick={() => navigate('/')}
-                className="absolute top-6 left-6 md:top-10 md:left-10 text-text-secondary0 hover:text-text-primary flex items-center gap-2 transition-colors text-[10px] font-black uppercase tracking-widest group"
+                className="absolute top-6 left-6 md:top-8 md:left-8 flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors group"
             >
-                <FiArrowLeft className="group-hover:-translate-x-1 transition-transform" /> Exit to Terminal
+                <FiArrowLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" /> Back to Home
             </button>
 
             <motion.div
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="w-full max-w-md relative z-10"
+                transition={{ duration: 0.4 }}
+                className="w-full max-w-md"
             >
-                <div className="text-center mb-10 md:mb-12">
-                    <div className="w-16 h-16 md:w-20 md:h-20 bg-card-bg border border-border text-brand-accent0 rounded-2xl md:rounded-3xl flex items-center justify-center mx-auto mb-6 md:mb-8">
-                        <FiShield size={32} className="md:w-10 md:h-10" />
+                {/* Header */}
+                <div className="text-center mb-8">
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5"
+                        style={{ backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE' }}>
+                        <FiShield size={24} style={{ color: '#2563EB' }} />
                     </div>
-                    <h2 className="text-3xl md:text-4xl font-black text-text-primary mb-2 tracking-tighter italic">Authorize Access</h2>
-                    <p className="text-sm md:text-base text-text-secondary0 font-medium font-sans italic">Enter your protocol credentials to continue.</p>
+                    <h2 className="text-2xl font-bold text-text-primary mb-1.5">Welcome back</h2>
+                    <p className="text-sm text-text-secondary">Sign in to your PanCred account</p>
                 </div>
 
-                <div className="premium-card !p-6 md:!p-8">
-                    <form onSubmit={handleLogin} className="space-y-6">
-                        <div className="space-y-5">
+                {/* Form Card */}
+                <div className="rounded-2xl p-7 md:p-8" style={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                    <form onSubmit={handleLogin} className="space-y-5">
+                        <div className="space-y-4">
+                            {/* Email */}
                             <div>
-                                <label className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-text-secondary block mb-3 px-1">Email Anchor</label>
+                                <label className="block text-sm font-medium text-text-primary mb-1.5">Email Address</label>
                                 <div className="relative">
-                                    <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary" />
+                                    <FiMail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary" size={16} />
                                     <input
                                         type="email"
                                         required
                                         disabled={emailVerified}
-                                        className="w-full bg-card-bg border border-border rounded-xl pl-12 pr-4 py-4 text-text-primary focus:outline-none focus:border-brand-accent transition-all font-medium placeholder:text-text-secondary text-sm disabled:opacity-60"
-                                        placeholder="you@protocol.com"
+                                        className="form-input pl-10"
+                                        placeholder="you@example.com"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
                                     />
                                 </div>
                             </div>
 
+                            {/* Password */}
                             <div>
-                                <label className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-text-secondary block mb-3 px-1">Secure Keyphrase</label>
+                                <label className="block text-sm font-medium text-text-primary mb-1.5">Password</label>
                                 <div className="relative">
-                                    <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary" />
+                                    <FiLock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary" size={16} />
                                     <input
                                         type="password"
                                         required
-                                        className="w-full bg-card-bg border border-border rounded-xl pl-12 pr-4 py-4 text-text-primary focus:outline-none focus:border-brand-accent transition-all font-medium placeholder:text-text-secondary text-sm"
+                                        className="form-input pl-10"
                                         placeholder="••••••••"
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
@@ -180,32 +181,33 @@ const SignIn = () => {
                                     type="button"
                                     onClick={handleSendOTP}
                                     disabled={loading}
-                                    className="btn-primary w-full !py-5 text-[10px] md:text-xs font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3"
+                                    className="btn-primary w-full"
                                 >
-                                    {loading ? <FiLoader className="animate-spin" /> : <><FiKey size={18} /> Initialize MFA Verification</>}
+                                    {loading ? <FiLoader className="animate-spin" size={16} /> : <><FiKey size={16} /> Send Verification Code</>}
                                 </button>
                             )}
                         </div>
 
+                        {/* OTP Entry */}
                         {showOTP && !emailVerified && (
-                            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6 py-2">
+                            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 pt-1">
                                 <div className="text-center">
-                                    <p className="text-xs text-brand-accent0 font-black uppercase tracking-widest mb-2">MFA Required</p>
-                                    <p className="text-text-secondary text-[11px] font-medium italic">Sent to <span className="text-text-primary">{email}</span></p>
+                                    <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">Verification Code</p>
+                                    <p className="text-sm text-text-secondary">Sent to <span className="font-medium text-text-primary">{email}</span></p>
                                 </div>
                                 <input
                                     type="text"
                                     maxLength={6}
                                     placeholder="000000"
-                                    className="w-full border border-border rounded-xl py-5 text-2xl font-mono tracking-[0.5em] text-text-primary text-center outline-none focus:border-border transition-all"
+                                    className="form-input text-2xl font-mono tracking-[0.5em] text-center"
                                     value={otp}
                                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                                 />
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-2 gap-3">
                                     <button
                                         type="button"
                                         onClick={() => setShowOTP(false)}
-                                        className="py-4 border border-border rounded-xl text-[10px] font-black uppercase tracking-widest text-text-secondary0 hover:text-text-primary transition-all"
+                                        className="btn-ghost !py-2.5 text-sm"
                                     >
                                         Back
                                     </button>
@@ -213,40 +215,42 @@ const SignIn = () => {
                                         type="button"
                                         onClick={handleVerifyOTP}
                                         disabled={loading}
-                                        className="py-4 rounded-xl text-[10px] font-black uppercase tracking-widest text-text-primary 0/20"
+                                        className="btn-primary !py-2.5 text-sm"
                                     >
-                                        Verify
+                                        {loading ? <FiLoader className="animate-spin" size={14} /> : 'Verify'}
                                     </button>
                                 </div>
                             </motion.div>
                         )}
 
+                        {/* Verified state */}
                         {emailVerified && (
-                            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-                                <div className="p-4 bg-bg-primary rounded-xl flex items-center justify-between border border-border">
-                                    <div className="flex items-center gap-3">
-                                        <FiCheckCircle className="text-brand-accent shrink-0" size={20} />
-                                        <div className="text-left">
-                                            <p className="text-brand-accent text-[10px] font-black uppercase tracking-widest">MFA Clear</p>
-                                            <p className="text-text-secondary text-[11px] font-medium truncate">{email}</p>
-                                        </div>
+                            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+                                <div className="flex items-center gap-3 p-3.5 rounded-xl"
+                                    style={{ backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0' }}>
+                                    <FiCheckCircle style={{ color: '#16A34A' }} size={18} className="flex-shrink-0" />
+                                    <div>
+                                        <p className="text-xs font-semibold" style={{ color: '#16A34A' }}>Email Verified</p>
+                                        <p className="text-xs text-text-secondary truncate">{email}</p>
                                     </div>
-                                    <FiShield className="text-brand-accent opacity-20" size={32} />
                                 </div>
                                 <button
                                     type="submit"
                                     disabled={loading}
-                                    className="btn-primary w-full !py-6 text-[10px] md:text-xs font-black uppercase tracking-[0.3em] flex items-center justify-center gap-4 animate-pulse hover:animate-none"
+                                    className="btn-primary w-full !py-3.5"
                                 >
-                                    {loading ? <FiLoader className="animate-spin" /> : <>Finalize Authorization <FiArrowRight size={18} /></>}
+                                    {loading ? <FiLoader className="animate-spin" size={16} /> : <>Sign In <FiArrowRight size={16} /></>}
                                 </button>
                             </motion.div>
                         )}
                     </form>
 
-                    <div className="mt-8 md:mt-10 pt-8 border-t border-border text-center">
-                        <p className="text-text-secondary0 text-xs font-medium italic">
-                            New protocol entity? <button onClick={() => navigate('/signup')} className="text-brand-accent0 hover:text-brand-accent font-black ml-1 transition-colors uppercase tracking-widest">Generate Identity</button>
+                    <div className="mt-6 pt-5 text-center" style={{ borderTop: '1px solid #E2E8F0' }}>
+                        <p className="text-sm text-text-secondary">
+                            Don't have an account?{' '}
+                            <button onClick={() => navigate('/signup')} className="font-semibold ml-1 transition-colors" style={{ color: '#2563EB' }}>
+                                Create Account
+                            </button>
                         </p>
                     </div>
                 </div>

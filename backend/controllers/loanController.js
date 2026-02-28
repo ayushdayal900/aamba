@@ -16,14 +16,14 @@ const backendAddresses = JSON.parse(fs.readFileSync(path.join(__dirname, '../con
 // @route   POST /api/loans
 exports.createLoanRequest = async (req, res) => {
     try {
-        let { borrowerId, amountRequested, interestRate, durationMonths, purpose, loanMode } = req.body;
+        let { borrowerId, amountRequested, interestRate, durationMonths, purpose, loanMode, simulatedSmartContractId } = req.body;
 
         // Verify user is an authorized borrower with an NFT
         const user = await User.findById(borrowerId);
         if (!user || user.role !== 'Borrower') {
             return res.status(403).json({ message: 'Only registered borrowers can request loans' });
         }
-        if (!user.nftIssued) {
+        if (!user.nftIssued && user.kycStatus !== 'FaceVerified' && user.kycStatus !== 'Verified') {
             return res.status(403).json({ message: 'You must complete KYC and mint an Identity NFT first' });
         }
 
@@ -58,7 +58,8 @@ exports.createLoanRequest = async (req, res) => {
             purpose,
             loanMode,
             status: 'Pending',
-            isActive: true
+            isActive: true,
+            simulatedSmartContractId: simulatedSmartContractId || null
         });
 
         // Trigger matching engine in background

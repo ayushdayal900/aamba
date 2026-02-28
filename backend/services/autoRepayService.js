@@ -113,6 +113,7 @@ async function processAgreement(loanDoc, agreementAddress) {
     }
 
     // loanStatusEnum => 0: Active, 1: Completed, 2: Defaulted
+    console.log(`[Diagnostic] Agrmnt=${agreementAddress.slice(0, 8)} | statusEnum=${loanStatusEnum} | modeEnum=${modeEnum}`);
     if (loanStatusEnum === 1n || status._completed) {
         console.log(JSON.stringify({ event: 'Loan Completed', loanId: loanDoc._id.toString(), agreement: agreementAddress }));
         if (loanDoc.status !== 'Repaid') {
@@ -152,6 +153,7 @@ async function processAgreement(loanDoc, agreementAddress) {
         _borrowerAllowance
     } = status;
 
+    console.log(`[Diagnostic] _remainingPayments = ${Number(_remainingPayments)}`);
     if (Number(_remainingPayments) === 0) return;
 
     const latestBlock = await provider.getBlock('latest');
@@ -164,7 +166,8 @@ async function processAgreement(loanDoc, agreementAddress) {
     const agr = new ethers.Contract(agreementAddress, agreementAbi, provider);
     const tokenAddress = await agr.token();
     const tokenContract = new ethers.Contract(tokenAddress, usdtAbi, provider);
-    const bal = await tokenContract.balanceOf(loanDoc.borrower);
+    const borrowerAddress = loanDoc.borrower?.walletAddress || loanDoc.borrower;
+    const bal = await tokenContract.balanceOf(borrowerAddress);
 
     console.log(`\n[AutoRepay] 🔍 Deep Diagnostic — Loan: ${loanDoc._id} | Agrmnt: ${agreementAddress}`);
     console.log(`- Block Timestamp: ${blockTs}`);
@@ -200,7 +203,8 @@ async function processAgreement(loanDoc, agreementAddress) {
         // Penalise trust score off-chain
         if (loanDoc.borrower) {
             try {
-                await trustScore.decreaseScore(loanDoc.borrower, 50, trustScore.ACTIONS.INSTALLMENT_MISSED);
+                const bId = loanDoc.borrower?._id || loanDoc.borrower;
+                await trustScore.decreaseScore(bId, 50, trustScore.ACTIONS.INSTALLMENT_MISSED);
             } catch (err) {
                 console.warn('[AutoRepay] ⚠️   TrustScore decrease failed:', err.message);
             }
@@ -291,34 +295,36 @@ async function processAgreement(loanDoc, agreementAddress) {
         // 7. Reward trust score
         if (loanDoc.borrower) {
             try {
+                const bId = loanDoc.borrower?._id || loanDoc.borrower;
                 const isFirstInstallment = !loanDoc.firstInstallmentRewarded;
 
                 if (isFirstInstallment) {
                     // +50 first-installment bonus (idempotent per-loan guard)
-                    await trustScore.increaseScore(loanDoc.borrower, 50, trustScore.ACTIONS.FIRST_INSTALLMENT);
+                    await trustScore.increaseScore(bId, 50, trustScore.ACTIONS.FIRST_INSTALLMENT);
                     loanDoc.firstInstallmentRewarded = true;
-                    await loanDoc.save();
+                    // Don't await save here, will save once at end of function
                 } else {
                     // +20 for each subsequent installment
-                    await trustScore.increaseScore(loanDoc.borrower, 20, trustScore.ACTIONS.INSTALLMENT_PAID);
+                    await trustScore.increaseScore(bId, 20, trustScore.ACTIONS.INSTALLMENT_PAID);
                 }
 
                 // If this was the FINAL payment, handle completedLoans + milestone bonus
                 if (Number(_remainingPayments) === 1) {
-                    const borrowerUser = await User.findById(loanDoc.borrower);
+                    const borrowerUser = await User.findById(bId);
                     if (borrowerUser) {
-                        if (borrowerUser.completedLoans === 0) {
-                            await trustScore.increaseScore(loanDoc.borrower, 100, trustScore.ACTIONS.FIRST_LOAN_COMPLETED);
+                        if ((borrowerUser.completedLoans || 0) === 0) {
+                            await trustScore.increaseScore(bId, 100, trustScore.ACTIONS.FIRST_LOAN_COMPLETED);
                         }
                         borrowerUser.completedLoans = (borrowerUser.completedLoans ?? 0) + 1;
                         await borrowerUser.save();
-                        console.log(`[AutoRepay] 🏆  completedLoans → ${borrowerUser.completedLoans} for ${loanDoc.borrower}`);
+                        console.log(`[AutoRepay] 🏆  completedLoans → ${borrowerUser.completedLoans} for ${bId}`);
                     }
                 }
             } catch (tsErr) {
                 console.warn('[AutoRepay] ⚠️   TrustScore reward failed:', tsErr.message);
             }
         }
+        await loanDoc.save();
 
         // 8. Success email
         try {
@@ -394,7 +400,7 @@ async function runRepaymentCycle() {
             loans = await LoanRequest.find({
                 status: { $in: ['Funded', 'Active'] },
                 simulatedSmartContractId: { $exists: true, $ne: null }
-            }).populate('borrower', '_id email name trustScore');
+            }).populate('borrower', '_id email name trustScore walletAddress');
         } catch (dbErr) {
             console.error('[AutoRepay] ❌  DB query failed:', dbErr.message);
             return;
@@ -409,10 +415,13 @@ async function runRepaymentCycle() {
 
         // Process sequentially to avoid RPC rate-limit hammering
         for (const loan of loans) {
-            const agreementAddress = loan.simulatedSmartContractId;
+            let agreementAddress = loan.simulatedSmartContractId;
 
             // Validate it looks like an Ethereum address (factory-deployed agreements)
-            if (!agreementAddress || !ethers.isAddress(agreementAddress)) {
+            try {
+                agreementAddress = ethers.getAddress(agreementAddress.toLowerCase());
+            } catch (e) {
+                console.log(`[AutoRepay] Invalid checksum or address: ${agreementAddress}`);
                 continue;
             }
 
@@ -453,7 +462,7 @@ async function forceAutoPay(loanId) {
         if (!initSigner()) {
             throw new Error('Signer missing - check env vars');
         }
-        const loan = await LoanRequest.findById(loanId).populate('borrower', '_id email name trustScore');
+        const loan = await LoanRequest.findById(loanId).populate('borrower', '_id email name trustScore walletAddress');
         if (!loan) {
             console.log(`[AutoRepay] ❌ Loan not found.`);
             return { success: false, message: 'Loan not found' };

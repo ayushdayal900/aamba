@@ -33,16 +33,16 @@ const Layout = ({ children }) => {
                 />
             )}
 
-            {/* Sidebar Drawer */}
+            {/* Sidebar — fixed on all screen sizes */}
             <div className={`
- fixed inset-y-0 left-0 z-50 transform lg:relative lg:translate-x-0 transition-transform duration-300 ease-in-out
- ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+ fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out
+ ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
  `}>
                 <Sidebar onClose={() => setIsMobileMenuOpen(false)} />
             </div>
 
-            {/* Main Content */}
-            <main className="flex-1 w-full pt-16 lg:pt-0 overflow-x-hidden">
+            {/* Main Content — offset by sidebar width on desktop */}
+            <main className="flex-1 w-full pt-16 lg:pt-0 lg:ml-60 overflow-x-hidden">
                 <div className="global-container py-8 lg:py-12">
                     {children}
                 </div>
