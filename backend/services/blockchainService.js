@@ -10,11 +10,13 @@ const addressesPath = path.join(__dirname, '../contracts/addresses.json');
 const microfinanceAbiPath = path.join(__dirname, '../contracts/Microfinance.json');
 const soulboundAbiPath = path.join(__dirname, '../contracts/SoulboundIdentity.json');
 const trustScoreAbiPath = path.join(__dirname, '../contracts/TrustScoreRegistry.json');
+const loanFactoryAbiPath = path.join(__dirname, '../contracts/LoanAgreementFactory.json');
 
 let addresses = {};
 let microfinanceAbi = [];
 let soulboundAbi = [];
 let trustScoreAbi = [];
+let loanFactoryAbi = [];
 
 if (fs.existsSync(addressesPath)) {
     addresses = JSON.parse(fs.readFileSync(addressesPath, 'utf8'));
@@ -28,6 +30,9 @@ if (fs.existsSync(soulboundAbiPath)) {
 if (fs.existsSync(trustScoreAbiPath)) {
     trustScoreAbi = JSON.parse(fs.readFileSync(trustScoreAbiPath, 'utf8'));
 }
+if (fs.existsSync(loanFactoryAbiPath)) {
+    loanFactoryAbi = JSON.parse(fs.readFileSync(loanFactoryAbiPath, 'utf8'));
+}
 
 const {
     RPC_URL,
@@ -38,6 +43,7 @@ let provider;
 let identityContract;
 let microfinanceContract;
 let trustScoreContract;
+let loanFactoryContract;
 
 /**
  * Helper function to manage robust Trust Score Updates (Local MongoDB only)
@@ -106,6 +112,10 @@ function connectProvider() {
             trustScoreContract = new ethers.Contract(addresses.trustScore, trustScoreAbi, signer || provider);
         }
 
+        if (addresses.loanFactory) {
+            loanFactoryContract = new ethers.Contract(addresses.loanFactory, loanFactoryAbi, provider);
+        }
+
         console.log('✅ Blockchain service connected');
     } catch (error) {
         console.error('❌ Failed to connect to blockchain provider:', error);
@@ -125,7 +135,13 @@ async function listenToContractEvents() {
 
     console.log('🎧 Starting robust event polling for Microfinance...');
 
-    let lastPolledBlock = await provider.getBlockNumber();
+    let lastPolledBlock;
+    try {
+        lastPolledBlock = await provider.getBlockNumber();
+    } catch (err) {
+        console.warn('⚠️ Could not fetch initial block number (RPC error). Event polling will retry on next tick:', err.message);
+        lastPolledBlock = 0;
+    }
 
     // Poll interval - check every 15 seconds
     setInterval(async () => {
@@ -233,8 +249,67 @@ async function listenToContractEvents() {
 
             lastPolledBlock = currentBlock;
         } catch (error) {
-            console.warn('⚠️ Event polling warning:', error.message);
-            // Don't update lastPolledBlock so we retry next time
+            console.warn('⚠️ Microfinance Event polling warning:', error.message);
+        }
+
+        // Factory Polling
+        if (loanFactoryContract) {
+            try {
+                const currentBlock = await provider.getBlockNumber();
+
+                // 1. Check for LoanRequested (New Installment Loan Ads)
+                const requestedEvents = await loanFactoryContract.queryFilter('LoanRequested', lastPolledBlock + 1, currentBlock);
+                for (const event of requestedEvents) {
+                    const { id: onChainId, borrower, principal, mode } = event.args;
+                    console.log(`[FactoryEvent] LoanRequested detected: ID ${onChainId} by ${borrower}`);
+
+                    try {
+                        const borrowerUser = await User.findOne({ walletAddress: borrower.toLowerCase() });
+                        let loanReq = await LoanRequest.findOne({ simulatedSmartContractId: onChainId.toString() });
+
+                        if (!loanReq) {
+                            loanReq = new LoanRequest({
+                                borrower: borrowerUser?._id,
+                                amountRequested: Number(ethers.formatUnits(principal, mode === 0 ? 18 : 6)),
+                                status: 'Pending',
+                                simulatedSmartContractId: onChainId.toString(),
+                                loanMode: Number(mode),
+                                purpose: 'On-chain Factory Request'
+                            });
+                            await loanReq.save();
+                            console.log(`[FactoryEvent] New LoanRequest synced: ${onChainId}`);
+                        }
+                    } catch (err) {
+                        console.error('Error processing LoanRequested event:', err);
+                    }
+                }
+
+                // 2. Check for LoanFunded (Installment Loan Funded)
+                const fundedEvents = await loanFactoryContract.queryFilter('LoanFunded', lastPolledBlock + 1, currentBlock);
+                for (const event of fundedEvents) {
+                    const { id: onChainId, lender, agreementAddress } = event.args;
+                    console.log(`[FactoryEvent] LoanFunded detected: ID ${onChainId} by ${lender}`);
+
+                    try {
+                        const loanReq = await LoanRequest.findOne({ simulatedSmartContractId: onChainId.toString() });
+                        if (loanReq) {
+                            loanReq.status = 'Funded';
+                            loanReq.simulatedSmartContractId = agreementAddress; // Switch to Agreement Address!
+                            loanReq.fundingTxHash = event.transactionHash;
+
+                            const lenderUser = await User.findOne({ walletAddress: lender.toLowerCase() });
+                            if (lenderUser) loanReq.lender = lenderUser._id;
+
+                            await loanReq.save();
+                            console.log(`[FactoryEvent] Loan ${onChainId} updated to Funded (Agr: ${agreementAddress})`);
+                        }
+                    } catch (err) {
+                        console.error('Error processing LoanFunded event:', err);
+                    }
+                }
+            } catch (error) {
+                console.warn('⚠️ Factory Event polling warning:', error.message);
+            }
         }
     }, 15000); // Poll every 15 seconds
 }

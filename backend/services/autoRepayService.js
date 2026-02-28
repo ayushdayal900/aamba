@@ -113,6 +113,7 @@ async function processAgreement(loanDoc, agreementAddress) {
     }
 
     // loanStatusEnum => 0: Active, 1: Completed, 2: Defaulted
+    console.log(`[Diagnostic] Agrmnt=${agreementAddress.slice(0, 8)} | statusEnum=${loanStatusEnum} | modeEnum=${modeEnum}`);
     if (loanStatusEnum === 1n || status._completed) {
         console.log(JSON.stringify({ event: 'Loan Completed', loanId: loanDoc._id.toString(), agreement: agreementAddress }));
         if (loanDoc.status !== 'Repaid') {
@@ -152,18 +153,38 @@ async function processAgreement(loanDoc, agreementAddress) {
         _borrowerAllowance
     } = status;
 
+    console.log(`[Diagnostic] _remainingPayments = ${Number(_remainingPayments)}`);
     if (Number(_remainingPayments) === 0) return;
 
-    const nowSec = Math.floor(Date.now() / 1000);
+    const latestBlock = await provider.getBlock('latest');
+    const blockTs = latestBlock.timestamp;
     const dueSec = Number(_nextDueTimestamp);
+    const diffSecs = dueSec - blockTs;
     const monthlyAmt = _monthlyPayment;   // BigInt (raw token units, 6 decimals)
 
+    // Log detailed diagnostics per user request
+    const agr = new ethers.Contract(agreementAddress, agreementAbi, provider);
+    const tokenAddress = await agr.token();
+    const tokenContract = new ethers.Contract(tokenAddress, usdtAbi, provider);
+    const borrowerAddress = loanDoc.borrower?.walletAddress || loanDoc.borrower;
+    const bal = await tokenContract.balanceOf(borrowerAddress);
+
+    console.log(`\n[AutoRepay] 🔍 Deep Diagnostic — Loan: ${loanDoc._id} | Agrmnt: ${agreementAddress}`);
+    console.log(`- Block Timestamp: ${blockTs}`);
+    console.log(`- Next Due Date  : ${dueSec}`);
+    console.log(`- Difference Secs: ${diffSecs} (negative means overdue)`);
+    console.log(`- Loan Mode      : ${modeEnum === 0n || modeEnum === 0 ? 'ETH' : 'ERC20'}`);
+    console.log(`- Loan Status    : ${loanStatusEnum}`);
+    console.log(`- Borrower Bal   : ${ethers.formatUnits(bal, 6)} tUSDT`);
+    console.log(`- Allowance      : ${ethers.formatUnits(_borrowerAllowance, 6)} tUSDT`);
+
     // 3. Not yet due — nothing to do
-    if (nowSec < dueSec) {
-        const minutesLeft = Math.round((dueSec - nowSec) / 60);
-        console.log(`${tag} ⏳  Not due yet. Next due in ~${minutesLeft} min.`);
+    if (blockTs < dueSec) {
+        console.log(`Autopay skipped - too early (${diffSecs}s remaining)`);
         return;
     }
+
+    console.log(`Autopay condition met`);
 
     console.log(`${tag} 🔔  Payment due! Paid ${Number(_paymentsMade)}/${Number(_totalDuration)}`);
 
@@ -182,7 +203,8 @@ async function processAgreement(loanDoc, agreementAddress) {
         // Penalise trust score off-chain
         if (loanDoc.borrower) {
             try {
-                await trustScore.decreaseScore(loanDoc.borrower, 50, trustScore.ACTIONS.INSTALLMENT_MISSED);
+                const bId = loanDoc.borrower?._id || loanDoc.borrower;
+                await trustScore.decreaseScore(bId, 50, trustScore.ACTIONS.INSTALLMENT_MISSED);
             } catch (err) {
                 console.warn('[AutoRepay] ⚠️   TrustScore decrease failed:', err.message);
             }
@@ -223,10 +245,32 @@ async function processAgreement(loanDoc, agreementAddress) {
         while (attempts < maxAttempts && !receipt) {
             try {
                 attempts++;
-                tx = await agrWithSigner.repayInstallment({ gasLimit: 250_000 });
+
+                // Estimate gas before calling to catch reverts early
+                let gasEst;
+                try {
+                    gasEst = await agrWithSigner.repayInstallment.estimateGas();
+                    console.log(`- Gas Est: ${gasEst.toString()}`);
+                } catch (gasErr) {
+                    console.error(`Autopay failed - revert reason during gas estimation:`);
+                    console.error(`- error.reason: ${gasErr.reason}`);
+                    console.error(`- error.data: ${gasErr.data}`);
+                    console.error(`- error.stack: ${gasErr.stack}`);
+                    throw gasErr;
+                }
+
+                tx = await agrWithSigner.repayInstallment({ gasLimit: gasEst * 120n / 100n });
+                console.log(`- Tx Hash: ${tx.hash}`);
                 receipt = await tx.wait();
+                console.log(`Autopay success`);
             } catch (err) {
-                if (attempts === maxAttempts) throw err;
+                if (attempts === maxAttempts) {
+                    console.error(`Autopay failed - revert reason:`);
+                    console.error(`- error.reason: ${err.reason}`);
+                    console.error(`- error.data: ${err.data}`);
+                    console.error(`- error.stack: ${err.stack}`);
+                    throw err;
+                }
                 console.log(JSON.stringify({ event: 'Transaction Retry', agreement: agreementAddress, attempt: attempts }));
             }
         }
@@ -251,34 +295,36 @@ async function processAgreement(loanDoc, agreementAddress) {
         // 7. Reward trust score
         if (loanDoc.borrower) {
             try {
+                const bId = loanDoc.borrower?._id || loanDoc.borrower;
                 const isFirstInstallment = !loanDoc.firstInstallmentRewarded;
 
                 if (isFirstInstallment) {
                     // +50 first-installment bonus (idempotent per-loan guard)
-                    await trustScore.increaseScore(loanDoc.borrower, 50, trustScore.ACTIONS.FIRST_INSTALLMENT);
+                    await trustScore.increaseScore(bId, 50, trustScore.ACTIONS.FIRST_INSTALLMENT);
                     loanDoc.firstInstallmentRewarded = true;
-                    await loanDoc.save();
+                    // Don't await save here, will save once at end of function
                 } else {
                     // +20 for each subsequent installment
-                    await trustScore.increaseScore(loanDoc.borrower, 20, trustScore.ACTIONS.INSTALLMENT_PAID);
+                    await trustScore.increaseScore(bId, 20, trustScore.ACTIONS.INSTALLMENT_PAID);
                 }
 
                 // If this was the FINAL payment, handle completedLoans + milestone bonus
                 if (Number(_remainingPayments) === 1) {
-                    const borrowerUser = await User.findById(loanDoc.borrower);
+                    const borrowerUser = await User.findById(bId);
                     if (borrowerUser) {
-                        if (borrowerUser.completedLoans === 0) {
-                            await trustScore.increaseScore(loanDoc.borrower, 100, trustScore.ACTIONS.FIRST_LOAN_COMPLETED);
+                        if ((borrowerUser.completedLoans || 0) === 0) {
+                            await trustScore.increaseScore(bId, 100, trustScore.ACTIONS.FIRST_LOAN_COMPLETED);
                         }
                         borrowerUser.completedLoans = (borrowerUser.completedLoans ?? 0) + 1;
                         await borrowerUser.save();
-                        console.log(`[AutoRepay] 🏆  completedLoans → ${borrowerUser.completedLoans} for ${loanDoc.borrower}`);
+                        console.log(`[AutoRepay] 🏆  completedLoans → ${borrowerUser.completedLoans} for ${bId}`);
                     }
                 }
             } catch (tsErr) {
                 console.warn('[AutoRepay] ⚠️   TrustScore reward failed:', tsErr.message);
             }
         }
+        await loanDoc.save();
 
         // 8. Success email
         try {
@@ -354,7 +400,7 @@ async function runRepaymentCycle() {
             loans = await LoanRequest.find({
                 status: { $in: ['Funded', 'Active'] },
                 simulatedSmartContractId: { $exists: true, $ne: null }
-            }).populate('borrower', '_id email name trustScore');
+            }).populate('borrower', '_id email name trustScore walletAddress');
         } catch (dbErr) {
             console.error('[AutoRepay] ❌  DB query failed:', dbErr.message);
             return;
@@ -369,10 +415,13 @@ async function runRepaymentCycle() {
 
         // Process sequentially to avoid RPC rate-limit hammering
         for (const loan of loans) {
-            const agreementAddress = loan.simulatedSmartContractId;
+            let agreementAddress = loan.simulatedSmartContractId;
 
             // Validate it looks like an Ethereum address (factory-deployed agreements)
-            if (!agreementAddress || !ethers.isAddress(agreementAddress)) {
+            try {
+                agreementAddress = ethers.getAddress(agreementAddress.toLowerCase());
+            } catch (e) {
+                console.log(`[AutoRepay] Invalid checksum or address: ${agreementAddress}`);
                 continue;
             }
 
@@ -406,4 +455,28 @@ function startAutoRepayScheduler() {
     cron.schedule('* * * * *', runRepaymentCycle); // every 60s (every minute)
 }
 
-module.exports = { startAutoRepayScheduler };
+// ── Manual Trigger ────────────────────────────────────────────────────────────
+async function forceAutoPay(loanId) {
+    console.log(`\n[AutoRepay] 🛠️ Manual Trigger: force-autopay for loan ${loanId}`);
+    try {
+        if (!initSigner()) {
+            throw new Error('Signer missing - check env vars');
+        }
+        const loan = await LoanRequest.findById(loanId).populate('borrower', '_id email name trustScore walletAddress');
+        if (!loan) {
+            console.log(`[AutoRepay] ❌ Loan not found.`);
+            return { success: false, message: 'Loan not found' };
+        }
+        if (!loan.simulatedSmartContractId) {
+            console.log(`[AutoRepay] ❌ Loan has no smart contract ID.`);
+            return { success: false, message: 'Loan not yet funded/deployed on-chain' };
+        }
+        await processAgreement(loan, loan.simulatedSmartContractId);
+        return { success: true, message: 'Manual trigger completed, check logs for details' };
+    } catch (err) {
+        console.error(`[AutoRepay] ❌ Manual Trigger Error:`, err);
+        return { success: false, message: err.message };
+    }
+}
+
+module.exports = { startAutoRepayScheduler, forceAutoPay };

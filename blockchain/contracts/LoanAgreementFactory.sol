@@ -217,6 +217,81 @@ contract LoanAgreementFactory {
         emit LoanFunded(requestId, msg.sender, agreementAddr);
     }
 
+    // --- Backend Matching Service Functions ---
+
+    /**
+     * @dev Deploys a LoanAgreement automatically matched by the off-chain engine.
+     *      Restricted strictly to the backend matching service.
+     */
+    function deployMatchedLoan(
+        address borrower,
+        address lender,
+        uint256 principal,
+        uint256 totalRepayment,
+        uint256 durationInMonths,
+        LoanAgreement.LoanMode mode
+    ) external payable returns (address) {
+        require(msg.sender == automationService, "Only automation service");
+        require(principal > 0, "Principal must be > 0");
+        require(totalRepayment >= principal, "Repayment must be >= principal");
+        require(borrower != address(0) && lender != address(0), "Zero address");
+
+        address token = address(0);
+        uint256 passedValue = 0;
+
+        if (mode == LoanAgreement.LoanMode.ETH) {
+            // Backend sends ETH to proxy the lender's funding
+            require(msg.value == principal, "Backend must fund ETH principal");
+            passedValue = msg.value;
+        } else {
+            require(msg.value == 0, "No ETH for ERC20 loans");
+            token = repaymentToken;
+            
+            // Factory orchestrates transfer from Lender -> Borrower immediately
+            require(
+                IERC20(repaymentToken).transferFrom(lender, borrower, principal),
+                "ERC20 Factory proxy transfer failed"
+            );
+        }
+
+        requestCounter++;
+        address agreementAddr = address(new LoanAgreement{value: passedValue}(
+            mode,
+            token,
+            borrower,
+            lender,
+            principal,
+            totalRepayment,
+            durationInMonths,
+            treasury,
+            INSURANCE_BPS * totalRepayment / 10_000,
+            automationService,
+            address(trustScoreRegistry)
+        ));
+
+        // Attempt TrustScoreRegistry auth mapping
+        try trustScoreRegistry.setAuthorized(agreementAddr, true) {} catch {}
+
+        loanRequests[requestCounter] = LoanRequest({
+            id: requestCounter,
+            borrower: borrower,
+            principal: principal,
+            totalRepayment: totalRepayment,
+            durationInMonths: durationInMonths,
+            funded: true,
+            agreementAddress: agreementAddr,
+            mode: mode
+        });
+
+        borrowerAgreements[borrower].push(agreementAddr);
+        lenderAgreements[lender].push(agreementAddr);
+        borrowerRequestIds[borrower].push(requestCounter);
+
+        emit LoanFunded(requestCounter, lender, agreementAddr);
+
+        return agreementAddr;
+    }
+
     // --- View Functions ---
 
     /**

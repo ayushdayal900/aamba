@@ -109,6 +109,13 @@ app.use('/api/liveness', livenessRoutes);
 app.use('/auth', authRoutes);
 app.use('/api/chat', chatRoutes);
 
+// Debug Routes
+app.post('/api/debug/force-autopay/:loanId', async (req, res) => {
+  const { forceAutoPay } = require('./services/autoRepayService');
+  const result = await forceAutoPay(req.params.loanId);
+  res.status(result.success ? 200 : 400).json(result);
+});
+
 // Basic Route for health check
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to the Microfinance API', status: 'OK' });

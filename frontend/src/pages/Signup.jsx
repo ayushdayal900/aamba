@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiUser, FiMail, FiLock, FiArrowRight, FiShield, FiCheckCircle } from 'react-icons/fi';
+import { FiUser, FiMail, FiLock, FiArrowRight, FiShield, FiCheckCircle, FiLoader } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 
@@ -34,15 +34,15 @@ const Signup = () => {
 
     const handleSendOTP = async () => {
         setLocalLoading(true);
-        const tid = toast.loading('Sending security code...');
+        const tid = toast.loading('Sending verification code...');
         try {
             const response = await axios.post('http://localhost:5000/auth/send-otp', { email });
             if (response.data.success) {
-                toast.success('OTP sent to your email', { id: tid });
+                toast.success('Code sent to your email', { id: tid });
                 setShowOTP(true);
                 setResendCooldown(30);
             } else {
-                toast.error(response.data.message || 'Failed to send OTP', { id: tid });
+                toast.error(response.data.message || 'Failed to send code', { id: tid });
             }
         } catch (err) {
             toast.error('Service unavailable. Try again.', { id: tid });
@@ -59,7 +59,7 @@ const Signup = () => {
         try {
             const response = await axios.post('http://localhost:5000/auth/verify-otp', { email, otp });
             if (response.data.verified) {
-                toast.success('Email verified successfully!', { id: tid });
+                toast.success('Email verified!', { id: tid });
                 setEmailVerified(true);
             } else {
                 toast.error(response.data.message || 'Invalid code', { id: tid });
@@ -86,12 +86,12 @@ const Signup = () => {
         }
 
         setLocalLoading(true);
-        const tid = toast.loading('Initializing protocol registration...');
+        const tid = toast.loading('Creating your account...');
 
         try {
             const result = await register(name, email, password);
             if (result.success) {
-                toast.success('Identity Created! Opening gateway...', { id: tid });
+                toast.success('Account created!', { id: tid });
 
                 // If they registered with an email that already had a complete profile
                 const profile = result.user;
@@ -113,35 +113,37 @@ const Signup = () => {
     };
 
     return (
-        <div className="min-h-screen bg-fintech-dark flex flex-col items-center justify-center px-4 py-12 relative overflow-hidden">
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[600px] aspect-square bg-blue-600/10 rounded-full blur-[120px] pointer-events-none"></div>
-
+        <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12 relative" style={{ backgroundColor: '#FFFFFF' }}>
             <motion.div
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="w-full max-w-md relative z-10"
+                transition={{ duration: 0.4 }}
+                className="w-full max-w-md"
             >
-                <div className="text-center mb-8 md:mb-10">
-                    <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 bg-fintech-surface border border-fintech-border text-blue-500 rounded-[2rem] mb-6 md:mb-8 shadow-xl">
-                        <FiShield size={32} className="md:w-9 md:h-9" />
+                {/* Header */}
+                <div className="text-center mb-8">
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5"
+                        style={{ backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE' }}>
+                        <FiShield size={24} style={{ color: '#2563EB' }} />
                     </div>
-                    <h1 className="text-3xl md:text-4xl font-black text-white mb-2 tracking-tighter italic">Initialize Identity</h1>
-                    <p className="text-sm md:text-base text-slate-500 font-medium tracking-tight font-sans italic">Step into the decentralized financial ecosystem.</p>
+                    <h1 className="text-2xl font-bold text-text-primary mb-1.5">Create your account</h1>
+                    <p className="text-sm text-text-secondary">Join the PanCred decentralized finance network</p>
                 </div>
 
-                <div className="premium-card !p-6 md:!p-8 shadow-[0_0_50px_rgba(0,0,0,0.5)]">
-                    <form onSubmit={handleSubmit} className="space-y-5 md:space-y-6">
+                {/* Form Card */}
+                <div className="rounded-2xl p-7 md:p-8" style={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                    <form onSubmit={handleSubmit} className="space-y-5">
                         {!showOTP && (
                             <AnimatePresence>
-                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5 md:space-y-6">
+                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
                                     <div>
-                                        <label className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 block mb-3 px-1">Full Legal Name</label>
+                                        <label className="block text-sm font-medium text-text-primary mb-1.5">Full Name</label>
                                         <div className="relative">
-                                            <FiUser className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" />
+                                            <FiUser className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary" size={16} />
                                             <input
                                                 type="text"
                                                 required
-                                                className="w-full bg-fintech-dark border border-fintech-border rounded-xl pl-12 pr-4 py-4 text-white focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all font-medium placeholder:text-slate-800 shadow-inner text-sm"
+                                                className="form-input pl-10"
                                                 placeholder="John Doe"
                                                 value={name}
                                                 onChange={(e) => setName(e.target.value)}
@@ -150,14 +152,14 @@ const Signup = () => {
                                     </div>
 
                                     <div>
-                                        <label className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 block mb-3 px-1">Email Anchor</label>
+                                        <label className="block text-sm font-medium text-text-primary mb-1.5">Email Address</label>
                                         <div className="relative">
-                                            <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" />
+                                            <FiMail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary" size={16} />
                                             <input
                                                 type="email"
                                                 required
-                                                className="w-full bg-fintech-dark border border-fintech-border rounded-xl pl-12 pr-4 py-4 text-white focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all font-medium placeholder:text-slate-800 shadow-inner text-sm"
-                                                placeholder="you@protocol.com"
+                                                className="form-input pl-10"
+                                                placeholder="you@example.com"
                                                 value={email}
                                                 onChange={(e) => setEmail(e.target.value)}
                                             />
@@ -165,13 +167,13 @@ const Signup = () => {
                                     </div>
 
                                     <div>
-                                        <label className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 block mb-3 px-1">Secure Keyphrase</label>
+                                        <label className="block text-sm font-medium text-text-primary mb-1.5">Password</label>
                                         <div className="relative">
-                                            <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" />
+                                            <FiLock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary" size={16} />
                                             <input
                                                 type="password"
                                                 required
-                                                className="w-full bg-fintech-dark border border-fintech-border rounded-xl pl-12 pr-4 py-4 text-white focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all font-medium placeholder:text-slate-800 shadow-inner text-sm"
+                                                className="form-input pl-10"
                                                 placeholder="••••••••"
                                                 value={password}
                                                 onChange={(e) => setPassword(e.target.value)}
@@ -182,28 +184,29 @@ const Signup = () => {
                             </AnimatePresence>
                         )}
 
+                        {/* OTP Entry */}
                         {showOTP && !emailVerified && (
-                            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6 py-4">
+                            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 py-2">
                                 <div className="text-center">
-                                    <p className="text-xs text-blue-500 font-black uppercase tracking-widest mb-2">Verification Required</p>
-                                    <p className="text-slate-400 text-[11px] font-medium italic">We've sent a 6-digit code to <span className="text-white">{email}</span></p>
+                                    <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">Verification Code</p>
+                                    <p className="text-sm text-text-secondary">Sent to <span className="font-medium text-text-primary">{email}</span></p>
                                 </div>
 
                                 <input
                                     type="text"
                                     maxLength={6}
                                     placeholder="000000"
-                                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-5 text-2xl font-mono tracking-[0.5em] text-white text-center outline-none focus:border-blue-600 transition-all shadow-inner"
+                                    className="form-input text-2xl font-mono tracking-[0.5em] text-center"
                                     value={otp}
                                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                                 />
 
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-2 gap-3">
                                     <button
                                         type="button"
                                         onClick={handleResendOTP}
                                         disabled={localLoading || resendCooldown > 0}
-                                        className="py-4 bg-slate-900 border border-slate-800 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white transition-all disabled:opacity-50"
+                                        className="btn-ghost !py-2.5 text-sm disabled:opacity-50"
                                     >
                                         {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Code'}
                                     </button>
@@ -211,21 +214,25 @@ const Signup = () => {
                                         type="button"
                                         onClick={handleVerifyOTP}
                                         disabled={localLoading}
-                                        className="py-4 bg-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-blue-500/20 hover:bg-blue-500 transition-all"
+                                        className="btn-primary !py-2.5 text-sm"
                                     >
-                                        Verify OTP
+                                        {localLoading ? <FiLoader className="animate-spin" size={14} /> : 'Verify'}
                                     </button>
                                 </div>
-                                <button type="button" onClick={() => setShowOTP(false)} className="w-full text-[9px] font-black uppercase tracking-widest text-slate-700 hover:text-slate-500 transition-all italic">Change Email Address</button>
+                                <button type="button" onClick={() => setShowOTP(false)} className="w-full text-xs font-medium text-text-secondary hover:text-text-primary transition-all text-center">
+                                    ← Change Email Address
+                                </button>
                             </motion.div>
                         )}
 
+                        {/* Email verified badge */}
                         {emailVerified && (
-                            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-3">
-                                <FiCheckCircle className="text-emerald-500 shrink-0" size={20} />
-                                <div className="text-left">
-                                    <p className="text-emerald-500 text-[10px] font-black uppercase tracking-widest">Email Verified</p>
-                                    <p className="text-white text-[11px] font-medium truncate">{email}</p>
+                            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-3 p-3.5 rounded-xl"
+                                style={{ backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0' }}>
+                                <FiCheckCircle style={{ color: '#16A34A' }} size={18} className="flex-shrink-0" />
+                                <div>
+                                    <p className="text-xs font-semibold" style={{ color: '#16A34A' }}>Email Verified</p>
+                                    <p className="text-xs text-text-secondary truncate">{email}</p>
                                 </div>
                             </motion.div>
                         )}
@@ -233,34 +240,37 @@ const Signup = () => {
                         <button
                             type="submit"
                             disabled={localLoading || (showOTP && !emailVerified)}
-                            className="btn-primary w-full !py-5 text-[10px] md:text-xs font-black uppercase tracking-[0.2em] group shadow-xl"
+                            className="btn-primary w-full !py-3.5"
                         >
                             {localLoading ? (
-                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto"></div>
+                                <FiLoader className="animate-spin" size={16} />
                             ) : (
                                 <>
-                                    {emailVerified ? 'Complete Protocol Registration' : 'Initialize Verification'}
-                                    <FiArrowRight className="inline ml-2 group-hover:translate-x-1 transition-transform" />
+                                    {emailVerified ? 'Create Account' : 'Send Verification Code'}
+                                    <FiArrowRight size={16} />
                                 </>
                             )}
                         </button>
                     </form>
 
-                    <div className="mt-8 pt-8 border-t border-slate-900 text-center">
-                        <p className="text-slate-500 text-xs md:text-sm font-medium italic">
-                            Already authorized? <Link to="/signin" className="text-blue-500 hover:text-blue-400 font-bold ml-1 transition-colors uppercase tracking-widest">Sign In</Link>
+                    <div className="mt-6 pt-5 text-center" style={{ borderTop: '1px solid #E2E8F0' }}>
+                        <p className="text-sm text-text-secondary">
+                            Already have an account?{' '}
+                            <Link to="/signin" className="font-semibold ml-1 transition-colors" style={{ color: '#2563EB' }}>
+                                Sign In
+                            </Link>
                         </p>
                     </div>
                 </div>
 
-                <div className="mt-10 md:mt-12 flex justify-center gap-8 md:gap-10 opacity-40">
-                    <div className="flex items-center gap-2">
-                        <FiShield className="text-blue-500" />
-                        <span className="text-[8px] md:text-[9px] font-black uppercase tracking-widest text-slate-500 italic font-medium">Encrypted</span>
+                <div className="mt-8 flex justify-center gap-6 opacity-60">
+                    <div className="flex items-center gap-1.5">
+                        <FiShield size={12} style={{ color: '#2563EB' }} />
+                        <span className="text-xs text-text-secondary font-medium">Encrypted</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                        <span className="text-[8px] md:text-[9px] font-black uppercase tracking-widest text-slate-500 italic font-medium">Web3 Ready</span>
+                    <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#16A34A' }}></div>
+                        <span className="text-xs text-text-secondary font-medium">Web3 Ready</span>
                     </div>
                 </div>
             </motion.div>
@@ -269,4 +279,3 @@ const Signup = () => {
 };
 
 export default Signup;
-

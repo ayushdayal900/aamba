@@ -38,10 +38,10 @@ const ProtectedRoute = ({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-fintech-dark flex justify-center items-center text-white font-medium">
+      <div className="min-h-screen bg-bg-primary flex justify-center items-center text-text-primary font-medium">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-fintech-accent border-t-transparent rounded-full animate-spin"></div>
-          <span className="animate-pulse tracking-widest uppercase text-xs font-bold text-slate-500 text-center">
+          <span className="animate-pulse tracking-widest uppercase text-xs font-bold text-text-secondary0 text-center">
             Protocol Synchronizing...
           </span>
         </div>
@@ -86,7 +86,7 @@ function App() {
 
   return (
     <Router>
-      <div className="min-h-screen bg-fintech-dark">
+      <div className="min-h-screen bg-bg-primary">
         <Routes>
           {/* Public Routes */}
           <Route
@@ -106,10 +106,10 @@ function App() {
             path="/onboarding"
             element={
               combinedLoading ? (
-                <div className="min-h-screen bg-fintech-dark flex justify-center items-center text-white">
+                <div className="min-h-screen bg-card-bg flex justify-center items-center text-text-primary">
                   <div className="flex flex-col items-center gap-4">
                     <div className="w-12 h-12 border-4 border-fintech-accent border-t-transparent rounded-full animate-spin"></div>
-                    <span className="animate-pulse tracking-widest uppercase text-xs font-bold text-slate-500">Protocol Synchronizing...</span>
+                    <span className="animate-pulse tracking-widest uppercase text-xs font-bold text-text-secondary0">Protocol Synchronizing...</span>
                   </div>
                 </div>
               ) : isAuthenticated ? (

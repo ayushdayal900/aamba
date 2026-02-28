@@ -16,14 +16,14 @@ const backendAddresses = JSON.parse(fs.readFileSync(path.join(__dirname, '../con
 // @route   POST /api/loans
 exports.createLoanRequest = async (req, res) => {
     try {
-        let { borrowerId, amountRequested, interestRate, durationMonths, purpose, loanMode } = req.body;
+        let { borrowerId, amountRequested, interestRate, durationMonths, purpose, loanMode, simulatedSmartContractId } = req.body;
 
         // Verify user is an authorized borrower with an NFT
         const user = await User.findById(borrowerId);
         if (!user || user.role !== 'Borrower') {
             return res.status(403).json({ message: 'Only registered borrowers can request loans' });
         }
-        if (!user.nftIssued) {
+        if (!user.nftIssued && user.kycStatus !== 'FaceVerified' && user.kycStatus !== 'Verified') {
             return res.status(403).json({ message: 'You must complete KYC and mint an Identity NFT first' });
         }
 
@@ -57,8 +57,14 @@ exports.createLoanRequest = async (req, res) => {
             durationMonths,
             purpose,
             loanMode,
-            status: 'Pending'
+            status: 'Pending',
+            isActive: true,
+            simulatedSmartContractId: simulatedSmartContractId || null
         });
+
+        // Trigger matching engine in background
+        const { runMatchingEngine } = require('../services/matchingService');
+        runMatchingEngine().catch(err => console.error('[MatchingEngine] Trigger failed:', err));
 
         console.log(JSON.stringify({
             event: 'LoanCreated',
@@ -400,6 +406,111 @@ exports.getLenderUpcomingPayments = async (req, res) => {
         res.status(200).json({ success: true, count: upcoming.length, data: upcoming });
     } catch (error) {
         console.error('[getLenderUpcomingPayments] Error:', error.message);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// ── LENDER ADS (OFF-CHAIN MATCHING) ──────────────────────────────────────────
+
+// @desc    Post a new Lender Ad
+// @route   POST /api/loans/lender/ad
+exports.postLenderAd = async (req, res) => {
+    try {
+        const userId = req.user._id || req.user.id;
+        const user = await User.findById(userId);
+
+        if (!user || user.role !== 'Lender') {
+            return res.status(403).json({ success: false, message: 'Only registered Lenders can post ads' });
+        }
+
+        const { amountAvailable, minInterestRate, maxDuration, loanMode } = req.body;
+
+        let modeNum = Number(loanMode ?? 1);
+
+        // Validation: ERC20 token check
+        if (modeNum === 1 && user.walletAddress) {
+            const rpcUrl = process.env.RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com';
+            const provider = new ethers.JsonRpcProvider(rpcUrl);
+            const tokenAddress = backendAddresses.mockUSDT;
+
+            if (tokenAddress) {
+                const usdtAbi = ["function balanceOf(address) view returns (uint256)"];
+                const tokenContract = new ethers.Contract(tokenAddress, usdtAbi, provider);
+                const bal = await tokenContract.balanceOf(user.walletAddress);
+                const balFmt = Number(ethers.formatUnits(bal, 6));
+
+                if (balFmt < amountAvailable) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Insufficient tUSDT balance. You have ${balFmt}, but attempted to post an ad for ${amountAvailable}.`
+                    });
+                }
+            }
+        }
+
+        const LenderAd = require('../models/LenderAd');
+        const ad = await LenderAd.create({
+            lenderAddress: user.walletAddress,
+            amountAvailable,
+            minInterestRate,
+            maxDuration,
+            loanMode: modeNum,
+            isActive: true
+        });
+
+        // Trigger matching engine asynchronously
+        const { runMatchingEngine } = require('../services/matchingService');
+        runMatchingEngine().catch(err => console.error('[MatchingEngine] Trigger failed:', err));
+
+        res.status(201).json({ success: true, data: ad });
+    } catch (error) {
+        console.error('[postLenderAd] Error:', error.message);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Get all ads for a specific lender
+// @route   GET /api/loans/lender/my-ads
+exports.getLenderAds = async (req, res) => {
+    try {
+        const userId = req.user._id || req.user.id;
+        const user = await User.findById(userId);
+
+        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+        if (!user.walletAddress) return res.status(200).json({ success: true, count: 0, data: [] });
+
+        const LenderAd = require('../models/LenderAd');
+        const ads = await LenderAd.find({ lenderAddress: user.walletAddress })
+            .sort({ createdAt: -1 });
+
+        res.status(200).json({ success: true, count: ads.length, data: ads });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Delete (soft-delete) a specific Lender Ad
+// @route   DELETE /api/loans/lender/ad/:id
+exports.deleteLenderAd = async (req, res) => {
+    try {
+        const userId = req.user._id || req.user.id;
+        const user = await User.findById(userId);
+
+        const LenderAd = require('../models/LenderAd');
+        const ad = await LenderAd.findById(req.params.id);
+
+        if (!ad) return res.status(404).json({ success: false, message: 'Ad not found' });
+
+        // Security check
+        if (ad.lenderAddress.toLowerCase() !== user.walletAddress.toLowerCase()) {
+            return res.status(403).json({ success: false, message: 'Not authorized to delete this ad' });
+        }
+
+        ad.isActive = false;
+        await ad.save();
+
+        res.status(200).json({ success: true, message: 'Ad successfully deactivated', data: ad });
+    } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
 };

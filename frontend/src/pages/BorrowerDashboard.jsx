@@ -55,10 +55,10 @@ const BorrowerDashboard = () => {
     const [showTrustHistory, setShowTrustHistory] = useState(false);
 
     const getTrustTier = (score) => {
-        if (score >= 850) return { label: 'Prime', color: 'text-emerald-400' };
-        if (score >= 700) return { label: 'Trusted', color: 'text-blue-400' };
-        if (score >= 500) return { label: 'Building Credit', color: 'text-amber-400' };
-        return { label: 'New Borrower', color: 'text-slate-500' };
+        if (score >= 850) return { label: 'Prime', };
+        if (score >= 700) return { label: 'Trusted', };
+        if (score >= 500) return { label: 'Building Credit', };
+        return { label: 'New Borrower', };
     };
 
     const fetchTrustData = async () => {
@@ -109,7 +109,7 @@ const BorrowerDashboard = () => {
 
             // Step 10: Log identity address so we can verify wiring
             console.log("Microfinance identity address:", identityAddr);
-            console.log("Config identity address      :", addresses.identity);
+            console.log("Config identity address :", addresses.identity);
             console.log(
                 identityAddr?.toLowerCase() === addresses.identity?.toLowerCase()
                     ? "[Diagnostic] ✅ Identity wiring MATCH — contract in sync."
@@ -146,10 +146,22 @@ const BorrowerDashboard = () => {
         contract.on("LoanFunded", handleUpdate);
         contract.on("LoanRepaid", handleUpdate);
 
+        // Factory Listeners
+        const factory = new ethers.Contract(addresses.loanFactory, factoryAbi, provider);
+        const handleFactoryUpdate = () => {
+            fetchMyAds();
+            fetchAgreements();
+            fetchMyLoans();
+        };
+        factory.on("LoanRequested", handleFactoryUpdate);
+        factory.on("LoanFunded", handleFactoryUpdate);
+
         return () => {
             contract.off("LoanCreated", handleUpdate);
             contract.off("LoanFunded", handleUpdate);
             contract.off("LoanRepaid", handleUpdate);
+            factory.off("LoanRequested", handleFactoryUpdate);
+            factory.off("LoanFunded", handleFactoryUpdate);
         };
     }, [walletAddress]);
 
@@ -188,6 +200,7 @@ const BorrowerDashboard = () => {
                         missedPayments: Number(status._missedPayments),
                         isOverdue: status._isOverdue,
                         isDue: Date.now() / 1000 >= Number(status._nextDueTimestamp),
+                        allowance: mode === 1 ? ethers.formatUnits(await new ethers.Contract(addresses.mockUSDT, ["function allowance(address,address) view returns (uint256)"], provider).allowance(walletAddress, addr), 6) : 0
                     };
                 } catch (e) {
                     console.error('[BorrowerDashboard] Failed to read agreement:', addr, e);
@@ -220,6 +233,8 @@ const BorrowerDashboard = () => {
                 if (borrower.toLowerCase() === walletAddress.toLowerCase()) {
                     toast.success(`Installment #${installmentNumber} paid!`, { id: `paid-${installmentNumber}` });
                     fetchAgreements();
+                    fetchMyLoans();
+                    fetchTrustData();
                 }
             };
 
@@ -227,6 +242,8 @@ const BorrowerDashboard = () => {
                 if (borrower.toLowerCase() === walletAddress.toLowerCase()) {
                     toast.error(`Installment missed! Triggers penalty.`, { id: `missed-${cyclesMissed}` });
                     fetchAgreements();
+                    fetchMyLoans();
+                    fetchTrustData();
                 }
             };
 
@@ -289,6 +306,37 @@ const BorrowerDashboard = () => {
         }
     };
 
+    const handleApproveAutopay = async (agreement) => {
+        if (!isConnected || !walletClient) return toast.error('Connect wallet first');
+        const tid = toast.loading(`Approving Autopay for ${agreement.address.slice(0, 8)}...`);
+        try {
+            const provider = new ethers.BrowserProvider(walletClient.transport);
+            const signer = await provider.getSigner();
+            const signerAddress = await signer.getAddress();
+
+            // Safety check: ensure current wallet is the actual borrower
+            if (signerAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+                toast.error(`Wallet Mismatch! Please switch to ${walletAddress.slice(0, 6)}...`, { id: tid });
+                return;
+            }
+
+            const tokenAbi = ["function approve(address spender, uint256 amount) public returns (bool)"];
+            const usdt = new ethers.Contract(addresses.mockUSDT, tokenAbi, signer);
+
+            // Approve a large fixed amount (1,000,000 tUSDT) to be bulletproof for the hackathon
+            const largeApprovalUnits = ethers.parseUnits("1000000", 6);
+
+            toast.loading('Confirming 1M tUSDT Approval in wallet...', { id: tid });
+            const tx = await usdt.approve(agreement.address, largeApprovalUnits);
+            await tx.wait();
+
+            toast.success('Autopay Approved for 1M tUSDT!', { id: tid });
+            fetchAgreements();
+        } catch (err) {
+            toast.error(parseBlockchainError(err), { id: tid });
+        }
+    };
+
 
     const checkUserIdentity = async () => {
         setIdentityChecking(true);
@@ -299,6 +347,11 @@ const BorrowerDashboard = () => {
             }
             const status = await checkIdentityOwnership(walletAddress, provider);
             setHasIdentity(status);
+
+            // If user's KYC status is Verified/FaceVerified, treat them as identity-ready
+            if (userProfile?.kycStatus === 'Verified' || userProfile?.kycStatus === 'FaceVerified') {
+                setHasIdentity(true);
+            }
         } catch (err) {
             console.error("Identity check error:", err);
         } finally {
@@ -490,15 +543,24 @@ const BorrowerDashboard = () => {
     };
 
     return (
-        <div className="space-y-8 md:space-y-12">
-            <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+        <div className="space-y-6 md:space-y-8 p-1">
+            <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
                 <div>
-                    <h1 className="text-3xl md:text-4xl font-black text-white italic tracking-tighter">Borrower Terminal</h1>
-                    <p className="text-sm md:text-base text-slate-500 font-medium">Manage your active obligations and protocol reputation.</p>
+                    <h1 className="text-2xl md:text-3xl font-bold text-text-primary">Borrower Dashboard</h1>
+                    <p className="text-sm text-text-secondary mt-1">Manage your active loan obligations and protocol reputation.</p>
                 </div>
-                <div className="flex items-center gap-3 bg-blue-600/5 border border-blue-500/10 px-4 py-2 rounded-xl">
-                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-500">Node Sync Active</span>
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => { fetchAgreements(); fetchMyLoans(); checkUserIdentity(); fetchTrustData(); }}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-border hover:bg-slate-50 transition-colors text-xs font-semibold text-text-secondary"
+                    >
+                        <FiActivity size={14} className={agreementsLoading ? 'animate-spin' : ''} />
+                        Sync Dashboard
+                    </button>
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE' }}>
+                        <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#2563EB' }}></div>
+                        <span className="text-xs font-semibold" style={{ color: '#2563EB' }}>Live Sync</span>
+                    </div>
                 </div>
             </header>
 
@@ -507,89 +569,82 @@ const BorrowerDashboard = () => {
                 <div className="space-y-6 md:space-y-8 order-2 lg:order-1">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-6">
                         {/* ── Protocol Reputation Card ── */}
-                        <div className="premium-card !p-8">
-                            <div className="flex items-center gap-3 text-slate-500 mb-4">
-                                <FiAward className="text-blue-500" />
-                                <span className="text-[9px] uppercase font-black tracking-widest">Trust Score</span>
-                            </div>
-                            <div className="text-5xl md:text-6xl font-black text-white mb-1 tracking-tighter italic">{trustData.trustScore}</div>
+                        <div className="premium-card card-blue">
                             <div className="flex items-center gap-2 mb-4">
-                                <span className={`text-[10px] font-black uppercase tracking-widest ${getTrustTier(trustData.trustScore).color}`}>
-                                    {getTrustTier(trustData.trustScore).label}
-                                </span>
+                                <FiAward size={16} style={{ color: '#2563EB' }} />
+                                <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Trust Score</span>
                             </div>
-                            {/* Progress to 700 */}
+                            <div className="text-4xl md:text-5xl font-bold text-text-primary mb-2" style={{ color: '#2563EB' }}>{trustData.trustScore}</div>
+                            <div className="flex items-center gap-2 mb-4">
+                                <span className="text-xs font-semibold text-text-secondary">{getTrustTier(trustData.trustScore).label}</span>
+                            </div>
                             {trustData.trustScore < 700 && (
                                 <div className="mt-2">
-                                    <div className="flex justify-between text-[8px] text-slate-600 font-bold mb-1">
-                                        <span>Progress to ETH unlock</span>
+                                    <div className="flex justify-between text-xs text-text-secondary font-medium mb-1">
+                                        <span>ETH unlock progress</span>
                                         <span>{trustData.trustScore} / 700</span>
                                     </div>
-                                    <div className="h-1.5 bg-slate-900 rounded-full overflow-hidden">
+                                    <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: '#DBEAFE' }}>
                                         <div
-                                            className="h-full bg-gradient-to-r from-blue-600 to-indigo-500 rounded-full transition-all duration-700"
-                                            style={{ width: `${Math.min(100, ((trustData.trustScore - 300) / 400) * 100)}%` }}
+                                            className="h-full rounded-full transition-all duration-700"
+                                            style={{ width: `${Math.min(100, ((trustData.trustScore - 300) / 400) * 100)}%`, backgroundColor: '#2563EB' }}
                                         />
                                     </div>
                                 </div>
                             )}
-                            <div className="mt-4 pt-4 border-t border-slate-900 flex justify-between items-center">
-                                <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest">Completed Loans</span>
-                                <span className="text-lg font-black text-white italic">{trustData.completedLoans}</span>
+                            <div className="mt-4 pt-4 flex justify-between items-center" style={{ borderTop: '1px solid #BFDBFE' }}>
+                                <span className="text-xs text-text-secondary font-medium">Completed Loans</span>
+                                <span className="text-lg font-bold text-text-primary">{trustData.completedLoans}</span>
                             </div>
                         </div>
 
-                        <div className={`premium-card !p-8 border-l-4 ${hasIdentity ? 'border-l-emerald-500/50' : 'border-l-red-500/50'}`}>
-                            <div className={`flex items-center gap-3 mb-6 font-black uppercase tracking-widest text-[9px] ${hasIdentity ? 'text-emerald-500' : 'text-red-500'}`}>
-                                <FiShield /> Identity Status
+                        <div className={`premium-card !p-6`} style={{ borderLeft: `4px solid ${hasIdentity ? '#16A34A' : '#DC2626'}` }}>
+                            <div className="flex items-center gap-2 mb-4">
+                                <FiShield size={16} style={{ color: hasIdentity ? '#16A34A' : '#DC2626' }} />
+                                <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Identity Status</span>
                             </div>
-                            <div className="flex items-center gap-4">
-                                <div className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center shadow-inner ${hasIdentity ? 'bg-emerald-500/5 text-emerald-500' : 'bg-red-500/5 text-red-500'}`}>
-                                    {identityChecking ? <FiLoader className="animate-spin" /> : hasIdentity ? <FiCheckCircle size={24} /> : <FiInfo size={24} />}
+                            <div className="flex items-center gap-3">
+                                <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ backgroundColor: hasIdentity ? '#F0FDF4' : '#FEF2F2' }}>
+                                    {identityChecking ? <FiLoader className="animate-spin" style={{ color: '#2563EB' }} /> : hasIdentity ? <FiCheckCircle size={22} style={{ color: '#16A34A' }} /> : <FiInfo size={22} style={{ color: '#DC2626' }} />}
                                 </div>
-                                <div className="overflow-hidden">
-                                    <p className="text-white font-black italic tracking-tight text-lg">
+                                <div>
+                                    <p className="text-base font-semibold text-text-primary">
                                         {identityChecking ? 'Checking...' : hasIdentity ? 'Verified SBT' : 'Not Verified'}
                                     </p>
-                                    <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest truncate">
-                                        {hasIdentity ? 'Authorized Node' : 'Missing Identity'}
-                                    </p>
+                                    <p className="text-xs text-text-secondary">{hasIdentity ? 'Protocol Authorized' : 'Identity Missing'}</p>
                                 </div>
                             </div>
                             {!hasIdentity && !identityChecking && (
-                                <button
-                                    onClick={checkUserIdentity}
-                                    className="mt-6 w-full py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[8px] font-black uppercase tracking-widest rounded-lg transition-all"
-                                >
-                                    Force Sync Local Node
+                                <button onClick={checkUserIdentity} className="mt-4 w-full py-2 text-xs font-semibold rounded-lg transition-all" style={{ backgroundColor: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA' }}>
+                                    Retry Verification
                                 </button>
                             )}
                         </div>
 
-                        <div className="premium-card !p-6 bg-slate-900/50 border-dashed border-slate-800">
-                            <div className="flex items-center gap-2 mb-4 text-[8px] font-black uppercase tracking-widest text-slate-600">
-                                <FiActivity /> Protocol Health
+                        <div className="premium-card !p-6 border-dashed border-slate-200 bg-slate-50/50">
+                            <div className="flex items-center gap-2 mb-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                <FiActivity className="text-blue-500" /> Protocol Health
                             </div>
                             <div className="space-y-3">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-[8px] text-slate-500 font-bold uppercase">Network</span>
-                                    <span className="text-[8px] text-blue-500 font-black uppercase">{chainId === 11155111 ? 'Sepolia' : 'Wrong Network'}</span>
+                                <div className="flex justify-between items-center text-[11px]">
+                                    <span className="text-slate-500 font-semibold uppercase tracking-tight">Network</span>
+                                    <span className="font-bold text-slate-700">{chainId === 11155111 ? 'Sepolia' : 'Wrong Network'}</span>
                                 </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-[8px] text-slate-500 font-bold uppercase">Identity Node</span>
-                                    <span className="text-[8px] text-slate-400 font-mono italic">{addresses.identity.slice(0, 6)}...{addresses.identity.slice(-4)}</span>
+                                <div className="flex justify-between items-center text-[11px]">
+                                    <span className="text-slate-500 font-semibold uppercase tracking-tight">Identity Node</span>
+                                    <span className="font-mono text-slate-600">{addresses.identity.slice(0, 6)}...{addresses.identity.slice(-4)}</span>
                                 </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-[8px] text-slate-500 font-bold uppercase">Linked Identity</span>
+                                <div className="flex justify-between items-center text-[11px]">
+                                    <span className="text-slate-500 font-semibold uppercase tracking-tight">Linked Identity</span>
                                     {(() => {
                                         const val = contractLinkInfo.identity;
                                         const isAddr = val && val.startsWith('0x') && val.length === 42;
                                         const isMatch = isAddr && val.toLowerCase() === addresses.identity?.toLowerCase();
                                         return (
-                                            <span className={`text-[8px] font-mono italic ${val === 'Checking...' ? 'text-slate-500' :
-                                                !isAddr ? 'text-red-400' :
-                                                    isMatch ? 'text-emerald-400' : 'text-red-400'
-                                                }`}>
+                                            <span className={`font-mono ${val === 'Checking...' ? 'text-slate-400' :
+                                                !isAddr ? 'text-red-500' :
+                                                    isMatch ? 'text-emerald-500' : 'text-amber-500'
+                                                } font-bold`}>
                                                 {val === 'Checking...' ? '...' :
                                                     isAddr ? `${val.slice(0, 6)}...${val.slice(-4)}` :
                                                         val.slice(0, 14)}
@@ -603,49 +658,44 @@ const BorrowerDashboard = () => {
                 </div>
 
                 {/* Right Column: Loan List */}
-                <div className="lg:col-span-2 space-y-6 md:space-y-8 order-1 lg:order-2">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-2">
-                        <h2 className="text-2xl md:text-3xl font-black text-white italic tracking-tighter">Active Obligations</h2>
-                        <span className="text-[10px] bg-slate-800 text-slate-400 px-4 py-1.5 rounded-full font-black uppercase tracking-widest w-fit">{myLoans.length} Records</span>
+                <div className="lg:col-span-2 space-y-5 order-1 lg:order-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <h2 className="text-xl font-semibold text-text-primary">Active Loans</h2>
+                        <span className="badge">{myLoans.length} Records</span>
                     </div>
 
                     {myLoans.length === 0 ? (
-                        <div className="premium-card py-20 text-center space-y-6 border-2 border-dashed border-slate-900">
-                            <div className="w-20 h-20 bg-slate-900 rounded-[2rem] flex items-center justify-center mx-auto text-slate-700">
+                        <div className="premium-card py-20 text-center space-y-6 border-2 border-dashed border-border">
+                            <div className="w-20 h-20 rounded-[2rem] flex items-center justify-center mx-auto text-text-primary">
                                 <FiInfo size={40} />
                             </div>
-                            <p className="text-slate-500 font-bold italic text-lg">No active protocol history detected.</p>
+                            <p className="text-text-secondary0 font-bold italic text-lg">No active protocol history detected.</p>
                         </div>
                     ) : (
                         <div className="space-y-6 md:space-y-8">
                             {myLoans.map(loan => (
-                                <div key={loan._id} className="premium-card !p-8 md:!p-10 border-l-4 border-l-blue-600 group hover:shadow-2xl transition-all duration-500">
-                                    <div className="flex flex-col sm:flex-row justify-between gap-8 mb-10">
+                                <div key={loan._id} className="premium-card !p-6 md:!p-8" style={{ borderLeft: '4px solid #2563EB' }}>
+                                    <div className="flex flex-col sm:flex-row justify-between gap-5 mb-6">
                                         <div className="space-y-2">
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-[9px] md:text-[10px] font-mono text-slate-500 font-black uppercase tracking-widest">Proposal #{loan.simulatedSmartContractId || 'PENDING'}</span>
-                                                <span className={`px-2 py-0.5 rounded-md text-[8px] md:text-[9px] font-black uppercase tracking-tighter ${loan.status === 'Funded' ? 'bg-blue-500/10 text-blue-500' :
-                                                    loan.status === 'Repaid' ? 'bg-emerald-500/10 text-emerald-500' :
-                                                        'bg-slate-800 text-slate-500'
-                                                    }`}>
-                                                    {loan.status}
-                                                </span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs font-mono text-text-secondary">#{loan.simulatedSmartContractId || 'PENDING'}</span>
+                                                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${loan.status === 'Funded' ? 'badge-success' : loan.status === 'Repaid' ? 'badge-success' : 'badge'}`}>{loan.status}</span>
                                             </div>
-                                            <h3 className="text-4xl md:text-5xl font-black text-white tracking-tighter italic">{loan.amountRequested} <span className="text-slate-500 text-sm font-normal not-italic ml-1">ETH</span></h3>
+                                            <p className="text-2xl md:text-3xl font-bold text-text-primary">{loan.amountRequested} <span className="text-text-secondary text-sm font-normal">ETH</span></p>
                                         </div>
 
-                                        <div className="grid grid-cols-2 sm:flex sm:items-center gap-8 md:gap-12">
-                                            <div className="space-y-1">
-                                                <p className="text-[9px] text-slate-500 font-black uppercase tracking-[0.2em]">Interest</p>
-                                                <p className="text-white font-black italic text-lg">{loan.interestRate}%</p>
+                                        <div className="flex items-center gap-6">
+                                            <div>
+                                                <p className="text-xs text-text-secondary font-semibold uppercase tracking-wider mb-1">Interest</p>
+                                                <p className="text-text-primary font-bold text-lg">{loan.interestRate}%</p>
                                             </div>
-                                            <div className="space-y-1">
-                                                <p className="text-[9px] text-slate-500 font-black uppercase tracking-[0.2em]">Term</p>
-                                                <p className="text-white font-black italic text-lg">{loan.durationMonths}m</p>
+                                            <div>
+                                                <p className="text-xs text-text-secondary font-semibold uppercase tracking-wider mb-1">Term</p>
+                                                <p className="text-text-primary font-bold text-lg">{loan.durationMonths}m</p>
                                             </div>
-                                            <div className="col-span-2 sm:col-auto border-t sm:border-t-0 sm:border-l border-slate-900 pt-6 sm:pt-0 sm:pl-10 space-y-1">
-                                                <p className="text-[9px] text-slate-500 font-black uppercase tracking-[0.2em]">Total Settle</p>
-                                                <p className="text-blue-500 font-black italic text-xl">{(loan.amountRequested * (1 + loan.interestRate / 100)).toFixed(4)}</p>
+                                            <div className="pl-5" style={{ borderLeft: '1px solid #E2E8F0' }}>
+                                                <p className="text-xs text-text-secondary font-semibold uppercase tracking-wider mb-1">Total Repay</p>
+                                                <p className="font-bold text-lg" style={{ color: '#2563EB' }}>{(loan.amountRequested * (1 + loan.interestRate / 100)).toFixed(4)}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -656,20 +706,36 @@ const BorrowerDashboard = () => {
                                         </div>
                                     </div>
 
-                                    <div className="flex flex-col md:flex-row items-stretch md:items-end justify-between gap-8 pt-8 border-t border-slate-900">
+                                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pt-5" style={{ borderTop: '1px solid #E2E8F0' }}>
                                         <div className="flex-1 overflow-hidden">
-                                            <p className="text-[9px] text-slate-500 font-black uppercase tracking-[0.2em] mb-4">Blockchain Evidence</p>
+                                            <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">Blockchain Evidence</p>
                                             <TransactionAccordion txHash={loan.status === 'Funded' ? loan.fundingTxHash : loan.repaymentTxHash} />
                                         </div>
 
                                         {loan.status === 'Funded' && (
-                                            <button
-                                                onClick={() => handleRepayLoan(loan._id, loan.simulatedSmartContractId, loan.amountRequested)}
-                                                disabled={processingLoan === loan._id}
-                                                className="btn-primary w-full md:w-auto px-12 !py-4 whitespace-nowrap bg-emerald-600 hover:bg-emerald-700 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/10"
-                                            >
-                                                {processingLoan === loan._id ? <FiLoader className="animate-spin text-white" /> : 'Settle On-Chain'}
-                                            </button>
+                                            <div className="flex flex-col gap-3">
+                                                {(() => {
+                                                    const agr = agreements.find(a => a.address.toLowerCase() === loan.simulatedSmartContractId?.toLowerCase());
+                                                    if (agr && agr.mode === 1 && Number(agr.allowance) < Number(agr.monthlyPayment)) {
+                                                        return (
+                                                            <button
+                                                                onClick={() => handleApproveAutopay(agr)}
+                                                                className="flex items-center gap-2 px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-bold shadow-lg transition-all animate-bounce"
+                                                            >
+                                                                <FiShield size={18} /> Approve Autopay
+                                                            </button>
+                                                        );
+                                                    }
+                                                    return null;
+                                                })()}
+                                                <button
+                                                    onClick={() => handleRepayLoan(loan._id, loan.simulatedSmartContractId, loan.amountRequested)}
+                                                    disabled={processingLoan === loan._id}
+                                                    className="btn-primary whitespace-nowrap !px-8 !py-3"
+                                                >
+                                                    {processingLoan === loan._id ? <FiLoader className="animate-spin" size={16} /> : 'Settle On-Chain'}
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
                                 </div>
@@ -680,38 +746,36 @@ const BorrowerDashboard = () => {
             </div>
 
             {/* ── My Posted Loan Requests (Factory Ads) ── */}
-            <section className="mt-16 pt-16 border-t border-slate-900">
-                <div className="flex items-center justify-between mb-10">
+            <section className="pt-8" style={{ borderTop: '1px solid #E2E8F0' }}>
+                <div className="flex items-center justify-between mb-6">
                     <div>
-                        <h2 className="text-2xl md:text-3xl font-black text-white italic tracking-tighter flex items-center gap-3">
-                            <FiPlus className="text-blue-500" /> My Posted Loan Requests
-                        </h2>
-                        <p className="text-xs text-slate-500 font-medium mt-1">All ads you have broadcast on-chain to the lender marketplace.</p>
+                        <h2 className="text-xl font-semibold text-text-primary">My Posted Loan Requests</h2>
+                        <p className="text-sm text-text-secondary mt-1">All ads you have broadcast on-chain to the lender marketplace.</p>
                     </div>
                     <div className="flex items-center gap-3">
-                        {myAdsLoading && <FiLoader className="text-blue-500 animate-spin" />}
-                        <span className="text-[10px] bg-slate-800 text-slate-400 px-4 py-1.5 rounded-full font-black uppercase tracking-widest w-fit">{myAds.length} Ad{myAds.length !== 1 ? 's' : ''}</span>
+                        {myAdsLoading && <FiLoader size={16} className="animate-spin" style={{ color: '#2563EB' }} />}
+                        <span className="badge">{myAds.length} Ad{myAds.length !== 1 ? 's' : ''}</span>
                     </div>
                 </div>
 
                 {myAds.length === 0 && !myAdsLoading ? (
-                    <div className="premium-card py-16 text-center space-y-4 border-2 border-dashed border-slate-900">
-                        <div className="w-16 h-16 bg-slate-900 rounded-3xl flex items-center justify-center mx-auto text-slate-700">
+                    <div className="premium-card py-16 text-center space-y-4 border-2 border-dashed border-border">
+                        <div className="w-16 h-16 rounded-3xl flex items-center justify-center mx-auto text-text-primary">
                             <FiAlertCircle size={32} />
                         </div>
-                        <p className="text-slate-500 font-bold italic">You have not posted any loan requests yet.</p>
-                        <p className="text-slate-600 text-sm font-medium">Head to the <strong className="text-slate-400">Borrow</strong> page to post your first loan request.</p>
+                        <p className="text-text-secondary0 font-bold italic">You have not posted any loan requests yet.</p>
+                        <p className="text-text-primary text-sm font-medium">Head to the <strong className="text-text-secondary">Borrow</strong> page to post your first loan request.</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         {myAds.map(ad => (
-                            <div key={ad.adId} className={`premium-card !p-6 border-l-4 transition-all duration-300 hover:shadow-xl ${ad.status === 'Funded' ? 'border-l-emerald-500/60' : 'border-l-blue-500/50'}`}>
+                            <div key={ad.adId} className={`premium-card !p-6 border-l-4 transition-all duration-300 hover:shadow-md ${ad.status === 'Funded' ? 'border-l-emerald-500' : 'border-l-blue-500'}`}>
                                 {/* Ad ID + Status pill */}
                                 <div className="flex justify-between items-start mb-5">
-                                    <span className="text-[9px] font-mono text-slate-500 font-black uppercase tracking-widest">Ad #{ad.adId}</span>
-                                    <span className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${ad.status === 'Funded'
-                                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                        : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                                    <span className="text-[10px] font-bold text-text-secondary uppercase tracking-widest">Ad #{ad.adId}</span>
+                                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${ad.status === 'Funded'
+                                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                                        : 'bg-blue-50 text-blue-600 border border-blue-100'
                                         }`}>
                                         {ad.status}
                                     </span>
@@ -719,32 +783,23 @@ const BorrowerDashboard = () => {
 
                                 {/* Principal */}
                                 <div className="mb-5">
-                                    <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">Principal</p>
-                                    <p className="text-3xl font-black text-white italic tracking-tighter">
-                                        {Number(ad.principal).toFixed(4)}
-                                        <span className="text-slate-500 text-sm font-normal not-italic ml-2">{ad.loanMode}</span>
+                                    <p className="text-[10px] text-text-secondary font-bold uppercase tracking-wider mb-1">Principal</p>
+                                    <p className="text-3xl font-bold text-text-primary tracking-tight">
+                                        {Number(ad.principal).toFixed(2)}
+                                        <span className="text-text-secondary text-sm font-medium ml-2">{ad.loanMode}</span>
                                     </p>
                                 </div>
 
                                 {/* Details grid */}
-                                <div className="grid grid-cols-2 gap-3 bg-slate-950/50 rounded-xl p-3 mb-5 border border-slate-900">
+                                <div className="grid grid-cols-2 gap-3 rounded-xl p-3 mb-5 bg-slate-50 border border-slate-100">
                                     <div>
-                                        <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest mb-1">Total Repay</p>
-                                        <p className="text-xs font-black text-white">{Number(ad.totalRepayment).toFixed(4)} <span className="text-slate-500 font-normal">{ad.loanMode}</span></p>
+                                        <p className="text-[9px] text-text-secondary font-bold uppercase tracking-widest mb-1 text-center">Total Repay</p>
+                                        <p className="text-sm font-bold text-text-primary text-center">{Number(ad.totalRepayment).toFixed(2)}</p>
                                     </div>
                                     <div>
-                                        <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest mb-1">Duration</p>
-                                        <p className="text-xs font-black text-white">{ad.repaymentInterval}m</p>
+                                        <p className="text-[9px] text-text-secondary font-bold uppercase tracking-widest mb-1 text-center">Duration</p>
+                                        <p className="text-sm font-bold text-text-primary text-center">{ad.repaymentInterval}m</p>
                                     </div>
-                                </div>
-
-                                {/* Mode badge */}
-                                <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest ${ad.loanMode === 'ETH'
-                                    ? 'bg-blue-500/5 border border-blue-500/15 text-blue-400'
-                                    : 'bg-emerald-500/5 border border-emerald-500/15 text-emerald-400'
-                                    }`}>
-                                    <div className={`w-1.5 h-1.5 rounded-full ${ad.loanMode === 'ETH' ? 'bg-blue-500' : 'bg-emerald-500'}`} />
-                                    {ad.loanMode === 'ETH' ? 'Native ETH' : 'ERC20 (tUSDT)'}
                                 </div>
                             </div>
                         ))}
@@ -753,40 +808,40 @@ const BorrowerDashboard = () => {
             </section>
 
             {/* On-Chain Archive Section */}
-            <section className="mt-16 pt-16 border-t border-slate-900">
-                <div className="flex items-center justify-between mb-10">
+            <section className="pt-8" style={{ borderTop: '1px solid #E2E8F0' }}>
+                <div className="flex items-center justify-between mb-6">
                     <div>
-                        <h2 className="text-2xl md:text-3xl font-black text-white italic tracking-tighter">On-Chain Protocol Archive</h2>
-                        <p className="text-xs text-slate-500 font-medium mt-1">Direct cryptographic verification of your protocol interactions.</p>
+                        <h2 className="text-xl font-semibold text-text-primary">On-Chain Archive</h2>
+                        <p className="text-sm text-text-secondary mt-1">Direct cryptographic verification of your protocol interactions.</p>
                     </div>
-                    {onChainLoading && <FiLoader className="text-blue-500 animate-spin" />}
+                    {onChainLoading && <FiLoader size={16} className="animate-spin" style={{ color: '#2563EB' }} />}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                     {/* Created Loans */}
                     <div className="space-y-6">
-                        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-600 px-2 flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div> Created by You
+                        <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-500 px-2 flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div> Created Requests
                         </h3>
                         {onChainLoans.created.length === 0 ? (
-                            <div className="premium-card !p-8 text-center text-slate-600 text-[10px] font-black uppercase tracking-widest border-2 border-dashed border-slate-900">Zero Records</div>
+                            <div className="premium-card !p-10 text-center text-slate-400 text-xs font-medium border-2 border-dashed border-slate-100 bg-transparent">Zero Records Found</div>
                         ) : (
                             onChainLoans.created.map(loan => (
-                                <div key={loan.id} className="premium-card !p-6 flex flex-col gap-4 border-l-2 border-blue-500/30">
+                                <div key={loan.id} className="premium-card !p-6 flex flex-col gap-4 border-l-2 border-slate-200">
                                     <div className="flex justify-between items-start">
-                                        <span className="text-[9px] font-mono text-slate-500 font-black">#ID-{loan.id}</span>
-                                        <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${loan.repaid ? 'bg-emerald-500/10 text-emerald-500' : loan.funded ? 'bg-blue-500/10 text-blue-500' : 'bg-slate-800 text-slate-500'}`}>
+                                        <span className="text-[10px] font-mono text-slate-400 font-bold uppercase tracking-tighter">#ID-{loan.id}</span>
+                                        <span className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded-lg ${loan.repaid ? 'bg-emerald-50 text-emerald-600' : loan.funded ? 'bg-blue-50 text-blue-600' : 'bg-slate-50 text-slate-500'}`}>
                                             {loan.repaid ? 'Settled' : loan.funded ? 'Active' : 'Unfunded'}
                                         </span>
                                     </div>
                                     <div className="flex justify-between items-end">
                                         <div>
-                                            <p className="text-2xl font-black text-white italic tracking-tighter">{loan.amount} <span className="text-[10px] not-italic text-slate-600 ml-1">ETH</span></p>
-                                            <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mt-1">Interest: {loan.interest} ETH</p>
+                                            <p className="text-2xl font-bold text-text-primary tracking-tight">{loan.amount} <span className="text-xs text-text-secondary font-normal ml-1">ETH</span></p>
+                                            <p className="text-[10px] font-bold uppercase tracking-wider text-text-secondary mt-1.5">Interest: {loan.interest} ETH</p>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1">Lender</p>
-                                            <p className="text-[8px] font-mono text-slate-400">{loan.lender === ethers.ZeroAddress ? 'OPEN MARKET' : `${loan.lender.slice(0, 6)}...${loan.lender.slice(-4)}`}</p>
+                                            <p className="text-[9px] font-bold uppercase tracking-widest text-text-secondary mb-1">Counterparty</p>
+                                            <p className="text-[10px] font-mono text-slate-500">{loan.lender === ethers.ZeroAddress ? 'Open Market' : `${loan.lender.slice(0, 6)}...${loan.lender.slice(-4)}`}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -796,28 +851,28 @@ const BorrowerDashboard = () => {
 
                     {/* Funded Loans */}
                     <div className="space-y-6">
-                        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-600 px-2 flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div> Funded by You
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-text-primary px-2 flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full 0"></div> Funded by You
                         </h3>
                         {onChainLoans.funded.length === 0 ? (
-                            <div className="premium-card !p-8 text-center text-slate-600 text-[10px] font-black uppercase tracking-widest border-2 border-dashed border-slate-900">Zero Records</div>
+                            <div className="premium-card !p-8 text-center text-text-primary text-[10px] font-black uppercase tracking-widest border-2 border-dashed border-border">Zero Records</div>
                         ) : (
                             onChainLoans.funded.map(loan => (
-                                <div key={loan.id} className="premium-card !p-6 flex flex-col gap-4 border-l-2 border-emerald-500/30">
+                                <div key={loan.id} className="premium-card !p-6 flex flex-col gap-4 border-l-2 border-border0/30">
                                     <div className="flex justify-between items-start">
-                                        <span className="text-[9px] font-mono text-slate-500 font-black">#ID-{loan.id}</span>
-                                        <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${loan.repaid ? 'bg-emerald-500/10 text-emerald-500' : 'bg-blue-500/10 text-blue-500'}`}>
+                                        <span className="text-[9px] font-mono text-text-secondary0 font-black">#ID-{loan.id}</span>
+                                        <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${loan.repaid ? '0/10 text-brand-accent0' : '0/10 text-brand-accent0'}`}>
                                             {loan.repaid ? 'Settled' : 'Active'}
                                         </span>
                                     </div>
                                     <div className="flex justify-between items-end">
                                         <div>
-                                            <p className="text-2xl font-black text-white italic tracking-tighter">{loan.amount} <span className="text-[10px] not-italic text-slate-600 ml-1">ETH</span></p>
-                                            <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mt-1">ROI: +{loan.interest} ETH</p>
+                                            <p className="text-2xl font-black text-text-primary italic tracking-tighter">{loan.amount} <span className="text-[10px] not-italic text-text-primary ml-1">ETH</span></p>
+                                            <p className="text-[8px] font-black uppercase tracking-widest text-text-secondary0 mt-1">ROI: +{loan.interest} ETH</p>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1">Borrower</p>
-                                            <p className="text-[8px] font-mono text-slate-400">{loan.borrower.slice(0, 6)}...{loan.borrower.slice(-4)}</p>
+                                            <p className="text-[8px] font-black uppercase tracking-[0.2em] text-text-secondary0 mb-1">Borrower</p>
+                                            <p className="text-[8px] font-mono text-text-secondary">{loan.borrower.slice(0, 6)}...{loan.borrower.slice(-4)}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -829,22 +884,22 @@ const BorrowerDashboard = () => {
 
             {/* ── Installment Agreements (Factory) ── */}
             {addresses.loanFactory && (
-                <section className="mt-16 pt-16 border-t border-slate-900">
-                    <div className="flex items-center justify-between mb-10">
+                <section className="pt-8" style={{ borderTop: '1px solid #E2E8F0' }}>
+                    <div className="flex items-center justify-between mb-6">
                         <div>
-                            <h2 className="text-2xl md:text-3xl font-black text-white italic tracking-tighter">Installment Agreements</h2>
-                            <p className="text-xs text-slate-500 font-medium mt-1">Active P2P loan contracts — pay monthly installments on-chain.</p>
+                            <h2 className="text-xl font-semibold text-text-primary">Installment Agreements</h2>
+                            <p className="text-sm text-text-secondary mt-1">Active P2P loan contracts — pay monthly installments on-chain.</p>
                         </div>
-                        {agreementsLoading && <FiLoader className="text-blue-500 animate-spin" />}
+                        {agreementsLoading && <FiLoader size={16} className="animate-spin" style={{ color: '#2563EB' }} />}
                     </div>
 
                     {agreements.length === 0 && !agreementsLoading ? (
-                        <div className="premium-card py-16 text-center space-y-4 border-2 border-dashed border-slate-900">
-                            <div className="w-16 h-16 bg-slate-900 rounded-3xl flex items-center justify-center mx-auto text-slate-700">
+                        <div className="premium-card py-16 text-center space-y-4 border-2 border-dashed border-border">
+                            <div className="w-16 h-16 rounded-3xl flex items-center justify-center mx-auto text-text-primary">
                                 <FiCalendar size={32} />
                             </div>
-                            <p className="text-slate-500 font-bold italic">No active factory agreements yet.</p>
-                            <p className="text-slate-600 text-sm">Post a loan request on the Borrow page and wait for a lender to fund it.</p>
+                            <p className="text-text-secondary0 font-bold italic">No active factory agreements yet.</p>
+                            <p className="text-text-primary text-sm">Post a loan request on the Borrow page and wait for a lender to fund it.</p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -852,107 +907,113 @@ const BorrowerDashboard = () => {
                                 const progress = agr.totalDuration > 0 ? (agr.paymentsMade / agr.totalDuration) * 100 : 0;
                                 const nextDue = new Date(agr.nextDueTimestamp * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
                                 return (
-                                    <div key={agr.address} className={`premium-card !p-8 border-l-4 ${agr.completed ? 'border-l-emerald-500/50' : agr.isDue ? 'border-l-amber-500/50' : 'border-l-blue-500/50'}`}>
-                                        {/* Contract address + status */}
-                                        <div className="flex justify-between items-start mb-6">
+                                    <div key={agr.address} className="premium-card !p-6" style={{ borderLeft: `4px solid ${agr.completed ? '#16A34A' : agr.isOverdue ? '#DC2626' : agr.isDue ? '#D97706' : '#2563EB'}` }}>
+                                        <div className="flex justify-between items-start mb-5">
                                             <div>
-                                                <p className="text-[9px] font-mono text-slate-500 font-black uppercase tracking-wider">Agreement</p>
-                                                <p className="text-xs font-mono text-slate-400 mt-1">{agr.address.slice(0, 10)}...{agr.address.slice(-6)}</p>
+                                                <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-0.5">Agreement</p>
+                                                <p className="text-xs font-mono text-text-secondary">{agr.address.slice(0, 10)}...{agr.address.slice(-6)}</p>
                                             </div>
-                                            <span className={`text-[8px] font-black uppercase px-2 py-1 rounded-lg ${agr.completed ? 'bg-emerald-500/10 text-emerald-500' : agr.isOverdue ? 'bg-red-500/10 text-red-500' : agr.isDue ? 'bg-amber-500/10 text-amber-400' : 'bg-blue-500/10 text-blue-500'}`}>
+                                            <span className={agr.completed ? 'badge-success' : agr.isOverdue ? 'badge-danger' : agr.isDue ? 'badge-warning' : 'badge'}>
                                                 {agr.completed ? 'Completed' : agr.isOverdue ? 'Overdue' : agr.isDue ? 'Payment Due' : 'Active'}
                                             </span>
                                         </div>
 
                                         {/* Monthly payment */}
-                                        <div className="mb-6 flex justify-between items-end">
+                                        <div className="mb-5 flex justify-between items-end">
                                             <div>
-                                                <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">Monthly Installment</p>
-                                                <p className="text-3xl font-black text-white italic tracking-tighter">
-                                                    {agr.monthlyPayment} <span className="text-slate-500 text-sm font-normal not-italic">{agr.mode === 0 ? 'ETH' : 'tUSDT'}</span>
-                                                </p>
+                                                <p className="text-xs text-text-secondary font-semibold uppercase tracking-wider mb-1">Monthly Installment</p>
+                                                <p className="text-2xl font-bold text-text-primary">{agr.monthlyPayment} <span className="text-text-secondary text-sm font-normal">{agr.mode === 0 ? 'ETH' : 'tUSDT'}</span></p>
                                             </div>
                                             <div className="text-right">
-                                                <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">Total Remaining</p>
-                                                <p className="text-lg font-black text-blue-400 italic tracking-tighter">
-                                                    {(Number(agr.monthlyPayment) * agr.remainingPayments).toFixed(2)} {agr.mode === 0 ? 'ETH' : 'tUSDT'}
-                                                </p>
+                                                <p className="text-xs text-text-secondary font-semibold uppercase tracking-wider mb-1">Total Remaining</p>
+                                                <p className="text-lg font-bold" style={{ color: '#2563EB' }}>{(Number(agr.monthlyPayment) * agr.remainingPayments).toFixed(2)} {agr.mode === 0 ? 'ETH' : 'tUSDT'}</p>
                                             </div>
                                         </div>
 
                                         {/* Configuration Details */}
-                                        <div className="grid grid-cols-2 gap-4 mb-6 bg-slate-900/40 rounded-xl p-4 border border-slate-800">
+                                        <div className="grid grid-cols-2 gap-4 mb-6 rounded-xl p-4 border border-border">
                                             <div>
-                                                <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest mb-1">Currency Mode</p>
-                                                <p className="text-xs font-black text-white uppercase">{agr.mode === 0 ? 'Ethereum Base' : 'ERC20 (tUSDT)'}</p>
+                                                <p className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider mb-1">Currency Mode</p>
+                                                <p className="text-sm font-bold text-text-primary uppercase tracking-tight">{agr.mode === 0 ? 'Ethereum Base' : 'ERC20 (tUSDT)'}</p>
                                             </div>
                                             <div className="text-right">
-                                                <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest mb-1">Autopay Execution</p>
+                                                <p className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider mb-1">Autopay Execution</p>
                                                 {agr.mode === 1 ? (
-                                                    <span className="text-xs font-black text-emerald-400 uppercase flex items-center justify-end gap-1"><FiCheckCircle size={10} /> Enabled</span>
+                                                    <span className="text-sm font-bold text-brand-accent uppercase flex items-center justify-end gap-1.5"><FiCheckCircle size={14} /> Enabled</span>
                                                 ) : (
-                                                    <span className="text-xs font-black text-amber-500 uppercase flex items-center justify-end gap-1">Disabled</span>
+                                                    <span className="text-sm font-bold text-text-secondary uppercase flex items-center justify-end gap-1.5">Disabled</span>
                                                 )}
                                             </div>
                                         </div>
 
                                         {/* Stats */}
-                                        <div className="grid grid-cols-4 gap-2 mb-6 bg-slate-950/50 rounded-xl p-3 text-center">
+                                        <div className="grid grid-cols-4 gap-2 mb-6 rounded-xl p-3 text-center bg-slate-50 border border-slate-100">
                                             <div>
-                                                <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Paid</p>
-                                                <p className="text-white font-black italic">{agr.paymentsMade}/{agr.totalDuration}</p>
+                                                <p className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider">Paid</p>
+                                                <p className="text-text-primary font-bold">{agr.paymentsMade}/{agr.totalDuration}</p>
                                             </div>
-                                            <div className="border-x border-slate-900">
-                                                <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Left</p>
-                                                <p className="text-blue-400 font-black italic">{agr.remainingPayments}</p>
+                                            <div className="border-x border-slate-200">
+                                                <p className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider">Left</p>
+                                                <p className="text-brand-accent font-bold">{agr.remainingPayments}</p>
                                             </div>
-                                            <div className="border-r border-slate-900">
-                                                <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Missed</p>
-                                                <p className="text-red-400 font-black italic">{agr.missedPayments}</p>
+                                            <div className="border-r border-slate-200">
+                                                <p className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider">Missed</p>
+                                                <p className="text-brand-accent font-bold">{agr.missedPayments}</p>
                                             </div>
                                             <div>
                                                 <div className="flex items-center justify-center gap-1">
-                                                    <FiCalendar size={9} className="text-slate-500" />
-                                                    <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Due</p>
+                                                    <FiCalendar size={11} className="text-text-secondary" />
+                                                    <p className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider">Due</p>
                                                 </div>
-                                                <p className="text-[9px] text-slate-400 font-bold">{agr.completed ? '—' : nextDue}</p>
+                                                <p className="text-[10px] text-text-secondary font-bold">{agr.completed ? '—' : nextDue}</p>
                                             </div>
                                         </div>
 
                                         {/* Progress bar */}
                                         <div className="mb-6">
                                             <div className="flex justify-between items-center mb-2">
-                                                <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Repayment Progress</p>
-                                                <p className="text-[8px] text-slate-400 font-black">{progress.toFixed(0)}%</p>
+                                                <p className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider">Repayment Progress</p>
+                                                <p className="text-[10px] text-text-secondary font-bold">{progress.toFixed(0)}%</p>
                                             </div>
-                                            <div className="h-1.5 bg-slate-900 rounded-full overflow-hidden">
-                                                <div
-                                                    className="h-full bg-gradient-to-r from-blue-600 to-emerald-500 rounded-full transition-all duration-500"
-                                                    style={{ width: `${progress}%` }}
-                                                />
+                                            <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: '#E2E8F0' }}>
+                                                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progress}%`, backgroundColor: '#2563EB' }} />
                                             </div>
                                         </div>
+
+                                        {/* Autopay Approval Warning/Button */}
+                                        {agr.mode === 1 && !agr.completed && Number(agr.allowance) < Number(agr.monthlyPayment) && (
+                                            <div className="mb-4 p-4 rounded-xl bg-amber-50 border border-amber-200">
+                                                <div className="flex items-start gap-3">
+                                                    <FiAlertCircle className="text-amber-600 mt-0.5" size={18} />
+                                                    <div className="flex-1">
+                                                        <p className="text-sm font-bold text-amber-800">Autopay Restricted</p>
+                                                        <p className="text-xs text-amber-700 mb-3">You must authorize the contract to pull tUSDT for automatic repayments.</p>
+                                                        <button
+                                                            onClick={() => handleApproveAutopay(agr)}
+                                                            className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2"
+                                                        >
+                                                            <FiShield size={14} /> Approve for Autopay
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
 
                                         {/* Pay button */}
                                         {!agr.completed && (
                                             <button
                                                 onClick={() => handlePayInstallment(agr)}
                                                 disabled={!agr.isDue || payingInstallment === agr.address}
-                                                className={`w-full btn-primary !py-4 text-[10px] font-black uppercase tracking-widest ${agr.isDue ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-500/10' : 'opacity-50 cursor-not-allowed'}`}
+                                                className={`w-full btn-primary !py-3 ${!agr.isDue ? 'opacity-50 cursor-not-allowed' : ''}`}
                                             >
-                                                {payingInstallment === agr.address
-                                                    ? <><FiLoader className="animate-spin inline mr-2" />Paying...</>
-                                                    : agr.isDue
-                                                        ? `Pay ${agr.monthlyPayment} ${agr.mode === 0 ? 'ETH' : 'tUSDT'} Now`
-                                                        : `Next Due: ${nextDue}`
-                                                }
+                                                {payingInstallment === agr.address ? <><FiLoader className="animate-spin" size={16} /> Paying...</> : agr.isDue ? `Pay ${agr.monthlyPayment} ${agr.mode === 0 ? 'ETH' : 'tUSDT'}` : `Next Due: ${nextDue}`}
                                             </button>
                                         )}
 
                                         {agr.completed && (
-                                            <div className="flex items-center justify-center gap-2 py-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
-                                                <FiCheckCircle className="text-emerald-500" />
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Fully Repaid</span>
+                                            <div className="flex items-center justify-center gap-2 py-3 rounded-xl" style={{ backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0' }}>
+                                                <FiCheckCircle style={{ color: '#16A34A' }} />
+                                                <span className="text-sm font-semibold" style={{ color: '#16A34A' }}>Fully Repaid</span>
                                             </div>
                                         )}
                                     </div>
@@ -963,19 +1024,16 @@ const BorrowerDashboard = () => {
                 </section>
             )}
             {/* ── Trust Score History Section ── */}
-            <section className="mt-16 pt-16 border-t border-slate-900">
-                <button
-                    onClick={() => setShowTrustHistory(v => !v)}
-                    className="w-full flex items-center justify-between px-2 pb-6 group"
-                >
+            <section className="pt-8" style={{ borderTop: '1px solid #E2E8F0' }}>
+                <button onClick={() => setShowTrustHistory(v => !v)} className="w-full flex items-center justify-between pb-5 group">
                     <div>
-                        <h2 className="text-2xl md:text-3xl font-black text-white italic tracking-tighter flex items-center gap-3">
-                            <FiAward className="text-blue-500" /> Trust Score History
+                        <h2 className="text-xl font-semibold text-text-primary flex items-center gap-2">
+                            <FiAward style={{ color: '#2563EB' }} size={18} /> Trust Score History
                         </h2>
-                        <p className="text-xs text-slate-500 font-medium mt-1">Full audit trail of your reputation updates.</p>
+                        <p className="text-sm text-text-secondary mt-1">Full audit trail of your reputation updates.</p>
                     </div>
-                    <div className="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-lg text-slate-400 group-hover:text-white transition-colors">
-                        <span className="text-[10px] font-black uppercase tracking-widest">{showTrustHistory ? 'Collapse' : 'Expand'}</span>
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-text-secondary group-hover:text-text-primary transition-colors">
+                        <span className="text-xs font-semibold">{showTrustHistory ? 'Collapse' : 'Expand'}</span>
                         {showTrustHistory ? <FiChevronUp size={14} /> : <FiChevronDown size={14} />}
                     </div>
                 </button>
@@ -983,37 +1041,26 @@ const BorrowerDashboard = () => {
                 {showTrustHistory && (
                     <div>
                         {trustData.trustHistory.length === 0 ? (
-                            <div className="premium-card py-12 text-center border-2 border-dashed border-slate-900">
-                                <p className="text-slate-600 font-bold italic">No trust score history yet.</p>
-                                <p className="text-slate-700 text-sm font-medium mt-1">Complete KYC, mint your SBT, and repay loans to build history.</p>
+                            <div className="premium-card py-12 text-center border-2 border-dashed border-border">
+                                <p className="text-text-primary font-bold italic">No trust score history yet.</p>
+                                <p className="text-text-primary text-sm font-medium mt-1">Complete KYC, mint your SBT, and repay loans to build history.</p>
                             </div>
                         ) : (
                             <div className="space-y-3">
                                 {trustData.trustHistory.map((entry, idx) => (
-                                    <div
-                                        key={idx}
-                                        className={`flex items-center justify-between px-5 py-4 rounded-xl border ${entry.points >= 0
-                                            ? 'bg-emerald-500/5 border-emerald-500/15'
-                                            : 'bg-red-500/5 border-red-500/15'
-                                            }`}
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black ${entry.points >= 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
-                                                }`}>
+                                    <div key={idx} className="flex items-center justify-between px-4 py-3 rounded-xl" style={{ backgroundColor: entry.points >= 0 ? '#F0FDF4' : '#FEF2F2', border: `1px solid ${entry.points >= 0 ? '#BBF7D0' : '#FECACA'}` }}>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold" style={{ backgroundColor: entry.points >= 0 ? '#DCFCE7' : '#FEE2E2', color: entry.points >= 0 ? '#16A34A' : '#DC2626' }}>
                                                 {entry.points >= 0 ? '+' : ''}{entry.points}
                                             </div>
                                             <div>
-                                                <p className="text-sm font-black text-white">{entry.action}</p>
-                                                <p className="text-[9px] text-slate-500 font-bold">
-                                                    {new Date(entry.timestamp).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                                    {' · '}
-                                                    {new Date(entry.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                                                </p>
+                                                <p className="text-sm font-semibold text-text-primary">{entry.action}</p>
+                                                <p className="text-xs text-text-secondary">{new Date(entry.timestamp).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} · {new Date(entry.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</p>
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-0.5">New Score</p>
-                                            <p className="text-lg font-black text-white italic">{entry.newScore}</p>
+                                            <p className="text-xs text-text-secondary font-medium">New Score</p>
+                                            <p className="text-base font-bold text-text-primary">{entry.newScore}</p>
                                         </div>
                                     </div>
                                 ))}

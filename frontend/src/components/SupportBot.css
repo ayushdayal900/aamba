@@ -6,45 +6,43 @@
 }
 
 .support-bot-toggle {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background-color: #007bff;
+    width: 56px;
+    height: 56px;
+    border-radius: 20px;
+    background-color: #2563EB;
     color: white;
     border: none;
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.2), 0 4px 6px -2px rgba(37, 99, 235, 0.1);
     display: flex;
     align-items: center;
     justify-content: center;
-    transition:
-        transform 0.2s ease,
-        background-color 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .support-bot-toggle:hover {
-    transform: scale(1.05);
-    background-color: #0056b3;
+    transform: translateY(-2px);
+    background-color: #1d4ed8;
+    box-shadow: 0 20px 25px -5px rgba(37, 99, 235, 0.2), 0 10px 10px -5px rgba(37, 99, 235, 0.1);
 }
 
 .support-bot-window {
-    width: 350px;
-    height: 500px;
+    width: 360px;
+    height: 520px;
     background-color: white;
-    border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    border-radius: 16px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    font-family:
-        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
-        sans-serif;
+    font-family: inherit;
+    border: 1px solid #e2e8f0;
 }
 
 .support-bot-header {
-    background-color: #007bff;
+    background-color: #2563EB;
     color: white;
-    padding: 16px;
+    padding: 18px 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -57,64 +55,66 @@
 }
 
 .support-bot-lang-select {
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: rgba(255, 255, 255, 0.15);
     color: white;
-    /* Header is blue, keep text white */
     border: none;
-    border-radius: 4px;
-    padding: 4px 8px;
-    font-size: 12px;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 600;
     cursor: pointer;
     outline: none;
     transition: background-color 0.2s;
 }
 
-.support-bot-lang-select option {
-    color: #212529;
-    background-color: #ffffff;
-}
-
 .support-bot-lang-select:hover,
 .support-bot-lang-select:focus {
-    background-color: rgba(255, 255, 255, 0.3);
+    background-color: rgba(255, 255, 255, 0.25);
 }
 
 .support-bot-lang-select option {
     background-color: white;
-    color: #333;
+    color: #1e293b;
 }
 
 .support-bot-header h4 {
     margin: 0;
-    font-size: 16px;
-    font-weight: 600;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
 }
 
 .support-bot-close {
     background: none;
     border: none;
     color: white;
-    font-size: 24px;
+    font-size: 20px;
     cursor: pointer;
     line-height: 1;
-    padding: 0;
+    padding: 4px;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.support-bot-close:hover {
+    opacity: 1;
 }
 
 .support-bot-messages {
     flex: 1;
-    padding: 16px;
+    padding: 20px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    background-color: #f8f9fa;
+    gap: 14px;
+    background-color: #f8fafc;
 }
 
 .support-bot-message-wrapper {
     display: flex;
     width: 100%;
     flex-direction: column;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 .support-bot-message-wrapper.user {
@@ -126,21 +126,22 @@
 }
 
 .support-bot-message {
-    max-width: 80%;
-    padding: 10px 14px;
-    border-radius: 18px;
+    max-width: 85%;
+    padding: 12px 16px;
+    border-radius: 14px;
     font-size: 14px;
-    line-height: 1.4;
+    line-height: 1.5;
     word-wrap: break-word;
     position: relative;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    font-weight: 500;
 }
 
 .support-bot-timestamp {
     font-size: 10px;
-    color: #888;
-    margin-top: 4px;
+    color: #94a3b8;
+    margin-top: 6px;
     padding: 0 4px;
+    font-weight: 500;
 }
 
 .support-bot-message-wrapper.user .support-bot-timestamp {
@@ -148,57 +149,65 @@
 }
 
 .support-bot-message.user {
-    background-color: #007bff;
+    background-color: #2563EB;
     color: white;
     border-bottom-right-radius: 4px;
+    box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.1);
 }
 
 .support-bot-message.bot {
-    background-color: #e9ecef;
-    color: #212529;
+    background-color: white;
+    color: #1e293b;
     border-bottom-left-radius: 4px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .support-bot-input-area {
-    padding: 12px 16px;
-    border-top: 1px solid #dee2e6;
+    padding: 16px 20px;
+    border-top: 1px solid #e2e8f0;
     background-color: white;
     display: flex;
-    gap: 8px;
+    gap: 12px;
     align-items: center;
 }
 
 .support-bot-input {
     flex: 1;
-    padding: 8px 12px;
-    border: 1px solid #ced4da;
-    border-radius: 20px;
+    padding: 10px 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
     outline: none;
     font-size: 14px;
     box-sizing: border-box;
-    color: #212529;
-    /* Explicitly set to prevent inheriting App's white text */
-    background-color: #ffffff;
+    color: #1e293b;
+    background-color: #f8fafc;
+    transition: all 0.2s;
 }
 
 .support-bot-input:focus {
-    border-color: #80bdff;
+    border-color: #2563EB;
+    background-color: white;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .support-bot-send {
-    background-color: #007bff;
+    background-color: #2563EB;
     color: white;
     border: none;
-    border-radius: 20px;
-    padding: 8px 16px;
-    font-size: 14px;
-    font-weight: 500;
+    border-radius: 12px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: all 0.2s;
 }
 
 .support-bot-send:hover {
-    background-color: #0056b3;
+    background-color: #1d4ed8;
+    transform: scale(1.05);
 }
 
 /* Typing Indicator Animation */

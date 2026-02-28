@@ -50,7 +50,8 @@ const ACTION_KYC_VERIFIED = 'KYC Verified';
  */
 exports.increaseScore = async (userId, points, reason) => {
     try {
-        const user = await User.findById(userId);
+        const id = userId?._id || userId;
+        const user = await User.findById(id);
         if (!user) throw new Error(`User ${userId} not found`);
 
         // ── Idempotency guards ──────────────────────────────────────────────
@@ -101,7 +102,8 @@ exports.increaseScore = async (userId, points, reason) => {
  */
 exports.decreaseScore = async (userId, points, reason) => {
     try {
-        const user = await User.findById(userId);
+        const id = userId?._id || userId;
+        const user = await User.findById(id);
         if (!user) throw new Error(`User ${userId} not found`);
 
         const oldScore = user.trustScore ?? MIN_SCORE;

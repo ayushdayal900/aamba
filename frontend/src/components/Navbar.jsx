@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { FiMenu, FiX, FiUser, FiLogOut, FiLayout, FiArrowRight } from 'react-icons/fi';
+import { FiMenu, FiX, FiUser, FiLogOut, FiLayout, FiArrowRight, FiShield } from 'react-icons/fi';
 
 const Navbar = () => {
     const { isAuthenticated, userProfile, logout } = useAuth();
@@ -16,54 +16,62 @@ const Navbar = () => {
     };
 
     return (
-        <nav className="bg-fintech-dark/80 backdrop-blur-md border-b border-fintech-border sticky top-0 z-50">
-            <div className="global-container h-20 flex justify-between items-center">
-                <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                        <span className="text-white font-black italic text-lg transition-transform hover:scale-110">A</span>
+        <nav style={{ backgroundColor: '#FFFFFF', borderBottom: '1px solid #E2E8F0' }} className="sticky top-0 z-50">
+            <div className="global-container h-16 flex justify-between items-center">
+                {/* Brand */}
+                <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#2563EB' }}>
+                        <FiShield className="text-white" size={16} />
                     </div>
-                    <Link to="/" className="text-2xl font-black text-white tracking-widest uppercase">
+                    <Link to="/" className="text-lg font-bold text-text-primary tracking-tight">
                         PanCred
                     </Link>
                 </div>
 
                 {/* Desktop Menu */}
-                <div className="hidden lg:flex items-center space-x-10">
-                    <div className="flex space-x-8">
-                        <Link to="/dashboard" className="text-slate-400 hover:text-white transition-colors text-xs font-black uppercase tracking-widest">Dashboard</Link>
+                <div className="hidden lg:flex items-center gap-8">
+                    <div className="flex items-center gap-6">
+                        <Link to="/dashboard" className="text-sm font-medium text-text-secondary hover:text-text-primary transition-colors">
+                            Dashboard
+                        </Link>
                         {userProfile?.role === 'Lender' && (
-                            <Link to="/lend" className="text-slate-400 hover:text-white transition-colors text-xs font-black uppercase tracking-widest">Lend</Link>
+                            <Link to="/lend" className="text-sm font-medium text-text-secondary hover:text-text-primary transition-colors">
+                                Lend
+                            </Link>
                         )}
                         {userProfile?.role === 'Borrower' && (
-                            <Link to="/borrow" className="text-slate-400 hover:text-white transition-colors text-xs font-black uppercase tracking-widest">Borrow</Link>
+                            <Link to="/borrow" className="text-sm font-medium text-text-secondary hover:text-text-primary transition-colors">
+                                Borrow
+                            </Link>
                         )}
                     </div>
 
-                    <div className="flex items-center space-x-6 pl-8 border-l border-fintech-border">
+                    <div className="flex items-center gap-4 pl-6" style={{ borderLeft: '1px solid #E2E8F0' }}>
                         {isAuthenticated ? (
-                            <div className="flex items-center space-x-6">
+                            <div className="flex items-center gap-3">
                                 <ConnectButton showBalance={false} chainStatus="icon" accountStatus="avatar" />
                                 <Link
                                     to="/dashboard/profile"
-                                    className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-all shadow-inner"
+                                    className="w-9 h-9 rounded-lg flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-slate-100 transition-all"
                                     title="Profile"
                                 >
-                                    <FiUser size={18} />
+                                    <FiUser size={17} />
                                 </Link>
                                 <button
                                     onClick={handleLogout}
-                                    className="p-3 bg-red-500/10 text-red-500 hover:bg-red-500/20 rounded-xl transition-all"
+                                    className="w-9 h-9 rounded-lg flex items-center justify-center text-text-secondary hover:text-red-600 hover:bg-red-50 transition-all"
+                                    title="Sign Out"
                                 >
-                                    <FiLogOut size={18} />
+                                    <FiLogOut size={17} />
                                 </button>
                             </div>
                         ) : (
-                            <div className="flex items-center space-x-4">
-                                <Link to="/signin" className="text-xs font-black uppercase tracking-widest text-slate-400 hover:text-white transition-colors px-4">
+                            <div className="flex items-center gap-3">
+                                <Link to="/signin" className="text-sm font-medium text-text-secondary hover:text-text-primary transition-colors px-3 py-2">
                                     Sign In
                                 </Link>
-                                <Link to="/signup" className="btn-primary !py-3">
-                                    Initialize Identity <FiArrowRight />
+                                <Link to="/signup" className="btn-primary !px-5 !py-2.5 text-sm">
+                                    Get Started <FiArrowRight size={14} />
                                 </Link>
                             </div>
                         )}
@@ -73,41 +81,53 @@ const Navbar = () => {
                 {/* Mobile Toggle */}
                 <button
                     onClick={() => setIsMenuOpen(!isMenuOpen)}
-                    className="lg:hidden w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+                    className="lg:hidden w-9 h-9 flex items-center justify-center rounded-lg text-text-secondary hover:text-text-primary hover:bg-slate-100 transition-all"
                 >
-                    {isMenuOpen ? <FiX size={24} /> : <FiMenu size={24} />}
+                    {isMenuOpen ? <FiX size={20} /> : <FiMenu size={20} />}
                 </button>
             </div>
 
             {/* Mobile Menu */}
             {isMenuOpen && (
-                <div className="lg:hidden bg-fintech-surface border-b border-fintech-border py-8 px-6 space-y-8 animate-in slide-in-from-top duration-300">
-                    <div className="flex flex-col space-y-6">
-                        <Link to="/dashboard" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 text-slate-300 hover:text-white text-sm font-bold"><FiLayout /> Dashboard</Link>
-                        {userProfile?.role === 'Lender' && (
-                            <Link to="/lend" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 text-slate-300 hover:text-white text-sm font-bold"><FiLayout /> Lend</Link>
-                        )}
-                        {userProfile?.role === 'Borrower' && (
-                            <Link to="/borrow" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 text-slate-300 hover:text-white text-sm font-bold"><FiLayout /> Borrow</Link>
-                        )}
-                    </div>
+                <div style={{ backgroundColor: '#FFFFFF', borderTop: '1px solid #E2E8F0' }} className="lg:hidden py-5 px-4 space-y-1">
+                    <Link to="/dashboard" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-slate-50 transition-all">
+                        <FiLayout size={16} /> Dashboard
+                    </Link>
+                    {userProfile?.role === 'Lender' && (
+                        <Link to="/lend" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-slate-50 transition-all">
+                            <FiLayout size={16} /> Lend
+                        </Link>
+                    )}
+                    {userProfile?.role === 'Borrower' && (
+                        <Link to="/borrow" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-slate-50 transition-all">
+                            <FiLayout size={16} /> Borrow
+                        </Link>
+                    )}
 
-                    <div className="pt-8 border-t border-fintech-border flex flex-col gap-6">
+                    <div className="pt-4 mt-4" style={{ borderTop: '1px solid #E2E8F0' }}>
                         {isAuthenticated ? (
-                            <>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xs text-slate-500 font-black uppercase tracking-widest">Protocol User</span>
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between px-3">
+                                    <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Wallet</span>
                                     <ConnectButton showBalance={false} chainStatus="icon" accountStatus="avatar" />
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <Link to="/dashboard/profile" onClick={() => setIsMenuOpen(false)} className="flex items-center justify-center gap-2 py-4 bg-white/5 rounded-xl text-sm font-bold text-white"><FiUser /> Profile</Link>
-                                    <button onClick={handleLogout} className="flex items-center justify-center gap-2 py-4 bg-red-500/10 rounded-xl text-sm font-bold text-red-500"><FiLogOut /> Logout</button>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <Link to="/dashboard/profile" onClick={() => setIsMenuOpen(false)} className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium text-text-primary border border-border hover:bg-slate-50 transition-all">
+                                        <FiUser size={15} /> Profile
+                                    </Link>
+                                    <button onClick={handleLogout} className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium text-red-600 border border-red-100 bg-red-50 hover:bg-red-100 transition-all">
+                                        <FiLogOut size={15} /> Sign Out
+                                    </button>
                                 </div>
-                            </>
+                            </div>
                         ) : (
-                            <div className="flex flex-col gap-4">
-                                <Link to="/signin" onClick={() => setIsMenuOpen(false)} className="flex items-center justify-center py-4 text-sm font-bold text-white border border-fintech-border rounded-xl">Sign In</Link>
-                                <Link to="/signup" onClick={() => setIsMenuOpen(false)} className="btn-primary">Initialize Identity <FiArrowRight /></Link>
+                            <div className="flex flex-col gap-2">
+                                <Link to="/signin" onClick={() => setIsMenuOpen(false)} className="flex items-center justify-center py-2.5 text-sm font-medium text-text-primary border border-border rounded-lg hover:bg-slate-50 transition-all">
+                                    Sign In
+                                </Link>
+                                <Link to="/signup" onClick={() => setIsMenuOpen(false)} className="btn-primary w-full justify-center">
+                                    Get Started <FiArrowRight size={14} />
+                                </Link>
                             </div>
                         )}
                     </div>

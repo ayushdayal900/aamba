@@ -11,9 +11,9 @@ function getToken() {
 // ─── Status badge ─────────────────────────────────────────────────────────────
 function RiskBadge({ riskLevel }) {
     const config = {
-        Live: { bg: 'rgba(34,197,94,0.15)', border: '#22c55e', text: '#4ade80', icon: '✅' },
-        Suspicious: { bg: 'rgba(234,179,8,0.15)', border: '#eab308', text: '#facc15', icon: '⚠️' },
-        Fake: { bg: 'rgba(239,68,68,0.15)', border: '#ef4444', text: '#f87171', icon: '❌' },
+        Live: { bg: '#F0FDF4', border: '#BBF7D0', text: '#16A34A', icon: '✅' },
+        Suspicious: { bg: '#FFFBEB', border: '#FDE68A', text: '#D97706', icon: '⚠️' },
+        Fake: { bg: '#FEF2F2', border: '#FECACA', text: '#DC2626', icon: '❌' },
     };
     const c = config[riskLevel] || config.Fake;
     return (
@@ -21,15 +21,16 @@ function RiskBadge({ riskLevel }) {
             style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '6px',
-                padding: '4px 14px',
-                borderRadius: '20px',
+                gap: '8px',
+                padding: '6px 16px',
+                borderRadius: '12px',
                 background: c.bg,
                 border: `1px solid ${c.border}`,
                 color: c.text,
                 fontWeight: 700,
-                fontSize: '0.85rem',
-                letterSpacing: '0.05em',
+                fontSize: '0.8rem',
+                letterSpacing: '0.02em',
+                textTransform: 'uppercase',
             }}
         >
             {c.icon} {riskLevel}
@@ -42,12 +43,12 @@ function ScoreRing({ score }) {
     const radius = 54;
     const circ = 2 * Math.PI * radius;
     const offset = circ - (score / 100) * circ;
-    const color = score >= 70 ? '#22c55e' : score >= 30 ? '#eab308' : '#ef4444';
+    const color = score >= 70 ? '#16A34A' : score >= 30 ? '#D97706' : '#DC2626';
 
     return (
         <div style={{ position: 'relative', width: 140, height: 140, margin: '0 auto' }}>
             <svg width="140" height="140" style={{ transform: 'rotate(-90deg)' }}>
-                <circle cx="70" cy="70" r={radius} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="10" />
+                <circle cx="70" cy="70" r={radius} fill="none" stroke="#F1F5F9" strokeWidth="10" />
                 <circle
                     cx="70" cy="70" r={radius}
                     fill="none"
@@ -64,8 +65,8 @@ function ScoreRing({ score }) {
                 display: 'flex', flexDirection: 'column',
                 alignItems: 'center', justifyContent: 'center',
             }}>
-                <span style={{ fontSize: '1.8rem', fontWeight: 800, color }}>{Math.round(score)}</span>
-                <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)', letterSpacing: '0.1em' }}>CONFIDENCE</span>
+                <span style={{ fontSize: '2rem', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.05em' }}>{Math.round(score)}</span>
+                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94A3B8', letterSpacing: '0.05em' }}>CONFIDENCE</span>
             </div>
         </div>
     );
@@ -73,9 +74,9 @@ function ScoreRing({ score }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function LivenessVerification() {
-    const [phase, setPhase] = useState('idle');      // idle | loading | detecting | verified | failed | error
+    const [phase, setPhase] = useState('idle'); // idle | loading | detecting | verified | failed | error
     const [sessionId, setSessionId] = useState(null);
-    const [result, setResult] = useState(null);    // { success, riskLevel, confidenceScore, token }
+    const [result, setResult] = useState(null); // { success, riskLevel, confidenceScore, token }
     const [errMsg, setErrMsg] = useState('');
 
     // ── 1. Create session on mount ──────────────────────────────────────────────
@@ -137,69 +138,70 @@ export default function LivenessVerification() {
     const styles = {
         page: {
             minHeight: '100vh',
-            background: 'linear-gradient(135deg, #0a0f1e 0%, #0d1a2e 60%, #101c35 100%)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             padding: '2rem',
-            fontFamily: "'Inter', 'Segoe UI', sans-serif",
+            fontFamily: "inherit",
+            backgroundColor: '#FFFFFF',
         },
         card: {
             width: '100%',
             maxWidth: 520,
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.08)',
+            background: '#F8FAFC',
+            border: '1px solid #E2E8F0',
             borderRadius: 24,
-            backdropFilter: 'blur(20px)',
-            padding: '2.5rem',
-            boxShadow: '0 24px 64px rgba(0,0,0,0.4)',
+            padding: '3rem',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
         },
         heading: {
-            fontSize: '1.6rem',
+            fontSize: '1.8rem',
             fontWeight: 800,
-            color: '#f1f5f9',
-            margin: '0 0 0.25rem',
+            color: '#0F172A',
+            margin: '0 0 0.5rem',
             textAlign: 'center',
+            letterSpacing: '-0.02em',
         },
         sub: {
-            fontSize: '0.9rem',
-            color: 'rgba(255,255,255,0.45)',
+            fontSize: '1rem',
+            color: '#64748B',
             textAlign: 'center',
-            marginBottom: '2rem',
+            marginBottom: '2.5rem',
         },
         spinner: {
-            width: 48, height: 48,
-            border: '4px solid rgba(99,179,237,0.2)',
-            borderTop: '4px solid #63b3ed',
+            width: 48,
+            height: 48,
+            border: '4px solid #EFF6FF',
+            borderTop: '4px solid #2563EB',
             borderRadius: '50%',
             animation: 'spin 0.8s linear infinite',
-            margin: '1.5rem auto',
+            margin: '2rem auto',
         },
         btn: {
             display: 'block',
             width: '100%',
-            padding: '0.85rem',
-            marginTop: '1.5rem',
-            background: 'linear-gradient(135deg, #3b82f6, #6366f1)',
+            padding: '1rem',
+            marginTop: '2rem',
             border: 'none',
             borderRadius: 12,
-            color: '#fff',
+            backgroundColor: '#2563EB',
+            color: 'white',
             fontWeight: 700,
-            fontSize: '0.95rem',
+            fontSize: '1rem',
             cursor: 'pointer',
-            letterSpacing: '0.05em',
-            transition: 'opacity 0.2s',
+            transition: 'all 0.2s',
+            boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2)',
         },
         tokenBox: {
-            marginTop: '1.25rem',
-            background: 'rgba(99,179,237,0.07)',
-            border: '1px solid rgba(99,179,237,0.2)',
-            borderRadius: 10,
-            padding: '0.75rem 1rem',
+            marginTop: '1.5rem',
+            background: '#F1F5F9',
+            border: '1px solid #E2E8F0',
+            borderRadius: 12,
+            padding: '1rem',
             wordBreak: 'break-all',
-            fontSize: '0.7rem',
-            color: 'rgba(255,255,255,0.45)',
+            fontSize: '0.75rem',
+            color: '#475569',
             fontFamily: 'monospace',
         },
     };
@@ -208,8 +210,8 @@ export default function LivenessVerification() {
         <>
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             <div style={styles.spinner} />
-            <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.5)', fontSize: '0.9rem' }}>
-                {phase === 'loading' ? 'Processing…' : 'Initialising…'}
+            <p style={{ textAlign: 'center', fontSize: '0.95rem', color: '#64748B', fontWeight: 500 }}>
+                {phase === 'loading' ? 'Verifying biometric markers…' : 'Initialising secure session…'}
             </p>
         </>
     );
@@ -240,16 +242,16 @@ export default function LivenessVerification() {
                         <ScoreRing score={result.confidenceScore} />
                         <div style={{ textAlign: 'center', marginTop: '1.25rem' }}>
                             <RiskBadge riskLevel={result.riskLevel} />
-                            <p style={{ color: '#4ade80', fontWeight: 700, fontSize: '1.1rem', marginTop: '0.75rem' }}>
+                            <p style={{ fontWeight: 700, fontSize: '1.1rem', marginTop: '0.75rem' }}>
                                 Identity Confirmed
                             </p>
-                            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.82rem', marginTop: '0.25rem' }}>
-                                Confidence: <strong style={{ color: '#f1f5f9' }}>{result.confidenceScore.toFixed(1)}%</strong>
+                            <p style={{ fontSize: '0.82rem', marginTop: '0.25rem' }}>
+                                Confidence: <strong >{result.confidenceScore.toFixed(1)}%</strong>
                             </p>
                         </div>
                         {result.token && (
                             <div style={styles.tokenBox}>
-                                <div style={{ color: 'rgba(255,255,255,0.3)', marginBottom: 4, fontSize: '0.68rem' }}>LIVENESS TOKEN</div>
+                                <div style={{ marginBottom: 4, fontSize: '0.68rem' }}>LIVENESS TOKEN</div>
                                 {result.token}
                             </div>
                         )}
@@ -266,8 +268,8 @@ export default function LivenessVerification() {
                             <p style={{ color: result.riskLevel === 'Suspicious' ? '#facc15' : '#f87171', fontWeight: 700, fontSize: '1.1rem', marginTop: '0.75rem' }}>
                                 {result.riskLevel === 'Suspicious' ? 'Verification Inconclusive' : 'Liveness Check Failed'}
                             </p>
-                            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.82rem', marginTop: '0.25rem' }}>
-                                Score: <strong style={{ color: '#f1f5f9' }}>{result.confidenceScore.toFixed(1)}%</strong>
+                            <p style={{ fontSize: '0.82rem', marginTop: '0.25rem' }}>
+                                Score: <strong >{result.confidenceScore.toFixed(1)}%</strong>
                             </p>
                         </div>
                         <button style={styles.btn} onClick={startSession}>Try Again</button>
@@ -277,7 +279,7 @@ export default function LivenessVerification() {
                 {/* ── Error ── */}
                 {phase === 'error' && (
                     <>
-                        <p style={{ textAlign: 'center', color: '#f87171', fontWeight: 600, marginTop: '1rem' }}>
+                        <p style={{ textAlign: 'center', fontWeight: 600, marginTop: '1rem' }}>
                             ❌ {errMsg || 'Something went wrong'}
                         </p>
                         <button style={styles.btn} onClick={startSession}>Retry</button>
