@@ -42,7 +42,7 @@ Amplify.configure({
 const config = getDefaultConfig({
     appName: 'MicroFin',
     projectId: 'b1eef86bafdfb9db1124deb507c6e076',
-    chains: [sepolia, mainnet, polygon, optimism, arbitrum, base],
+    chains: [sepolia],
 });
 
 const queryClient = new QueryClient();
