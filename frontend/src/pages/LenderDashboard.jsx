@@ -174,7 +174,7 @@ const LenderDashboard = () => {
         setPostingAd(true);
         const tid = toast.loading('Posting your lending offer to marketplace...');
         try {
-            const res = await api.post('/api/loans/lender/ad', {
+            const res = await api.post('/loans/lender/ad', {
                 amountAvailable: Number(adAmount),
                 minInterestRate: Number(adMinInterest),
                 maxDuration: Number(adMaxDuration),
@@ -197,7 +197,7 @@ const LenderDashboard = () => {
     const handleDeleteAd = async (adId) => {
         const tid = toast.loading('Deactivating offer...');
         try {
-            const res = await api.delete(`/api/loans/lender/ad/${adId}`);
+            const res = await api.delete(`/loans/lender/ad/${adId}`);
             if (res.data.success) {
                 toast.success('Offer deactivated', { id: tid });
                 fetchMyAds();
@@ -401,7 +401,7 @@ const LenderDashboard = () => {
             } catch (backendErr) {
                 const isNetworkErr = !backendErr.response;
                 const specificMsg = isNetworkErr
-                    ? 'Backend offline — cannot reach http://localhost:5000'
+                    ? 'Backend offline — check VITE_API_URL and EC2 status'
                     : `Backend error ${backendErr.response?.status}: ${backendErr.response?.data?.message || backendErr.message}`;
                 console.error(' [Sync] Backend request failed:', specificMsg, backendErr);
                 toast.error(specificMsg);

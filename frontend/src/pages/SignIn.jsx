@@ -35,7 +35,7 @@ const SignIn = () => {
         setLoading(true);
         const tid = toast.loading('Sending security code...');
         try {
-            const response = await axios.post('http://localhost:5000/auth/send-otp', { email });
+            const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/auth/send-otp`, { email });
             if (response.data.success) {
                 toast.success('OTP sent to your email', { id: tid });
                 setShowOTP(true);
@@ -55,7 +55,7 @@ const SignIn = () => {
         setLoading(true);
         const tid = toast.loading('Verifying code...');
         try {
-            const response = await axios.post('http://localhost:5000/auth/verify-otp', { email, otp });
+            const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/auth/verify-otp`, { email, otp });
             if (response.data.verified) {
                 toast.success('Aadhar Card Number Verified!', { id: tid });
                 setEmailVerified(true);
