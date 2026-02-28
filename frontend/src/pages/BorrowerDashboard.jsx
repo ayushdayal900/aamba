@@ -307,10 +307,13 @@ const BorrowerDashboard = () => {
     };
 
     const handleApproveAutopay = async (agreement) => {
-        if (!isConnected || !walletClient) return toast.error('Connect wallet first');
+        if (!isConnected) return toast.error('Connect wallet first');
+        if (!window.ethereum) return toast.error('MetaMask not found');
+
         const tid = toast.loading(`Approving Autopay for ${agreement.address.slice(0, 8)}...`);
         try {
-            const provider = new ethers.BrowserProvider(walletClient.transport);
+            // Use window.ethereum directly to avoid MetaMask ERC20 rendering crash
+            const provider = new ethers.BrowserProvider(window.ethereum);
             const signer = await provider.getSigner();
             const signerAddress = await signer.getAddress();
 
@@ -323,14 +326,16 @@ const BorrowerDashboard = () => {
             const tokenAbi = ["function approve(address spender, uint256 amount) public returns (bool)"];
             const usdt = new ethers.Contract(addresses.mockUSDT, tokenAbi, signer);
 
-            // Approve a large fixed amount (1,000,000 tUSDT) to be bulletproof for the hackathon
+            // Approve 1,000,000 tUSDT to the LoanAgreement contract (not the factory)
+            // This allows repayInstallment() to call transferFrom(borrower, lender, amount)
             const largeApprovalUnits = ethers.parseUnits("1000000", 6);
 
-            toast.loading('Confirming 1M tUSDT Approval in wallet...', { id: tid });
+            toast.loading(`Approving 1M tUSDT to agreement ${agreement.address.slice(0, 8)}...`, { id: tid });
             const tx = await usdt.approve(agreement.address, largeApprovalUnits);
+            toast.loading('Waiting for confirmation on Sepolia...', { id: tid });
             await tx.wait();
 
-            toast.success('Autopay Approved for 1M tUSDT!', { id: tid });
+            toast.success('Autopay Approved! Backend will process next installment within 60 seconds.', { id: tid });
             fetchAgreements();
         } catch (err) {
             toast.error(parseBlockchainError(err), { id: tid });
