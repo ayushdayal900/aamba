@@ -2,7 +2,7 @@
   
  
   
-  # MicroFin 
+  # PanCred
   
   *Enterprise-Grade Web3 Microfinance Platform*
   
